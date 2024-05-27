@@ -184,7 +184,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="arr.cpp" />
+    <ClCompile Include="vec.cpp" />
     <ClCompile Include="cnn.cpp" />
     <ClCompile Include="fnn.cpp" />
     <ClCompile Include="main.cpp" />
@@ -194,7 +194,7 @@
     <ClCompile Include="rnn.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="arr.h" />
+    <ClInclude Include="vec.h" />
     <ClInclude Include="cnn.h" />
     <ClInclude Include="fnn.h" />
     <ClInclude Include="mtx.h" />

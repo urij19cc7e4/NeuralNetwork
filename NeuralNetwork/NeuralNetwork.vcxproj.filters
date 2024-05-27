@@ -18,7 +18,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="arr.cpp">
+    <ClCompile Include="vec.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="cnn.cpp">
@@ -41,7 +41,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="arr.h">
+    <ClInclude Include="vec.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="cnn.h">
