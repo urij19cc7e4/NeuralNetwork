@@ -194,6 +194,11 @@
     <ClCompile Include="rnn.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="data.h" />
+    <ClInclude Include="fnn_activs.h" />
+    <ClInclude Include="fnn_derivs.h" />
+    <ClInclude Include="fnn_inits.h" />
+    <ClInclude Include="fnn_params.h" />
     <ClInclude Include="vec.h" />
     <ClInclude Include="cnn.h" />
     <ClInclude Include="fnn.h" />
