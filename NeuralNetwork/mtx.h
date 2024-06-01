@@ -1,12 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <functional>
-#include <tuple>
-
 #include "data.h"
-
-using namespace std;
 
 template <typename T, bool initialize>
 class mtx;
@@ -16,20 +10,6 @@ class vec;
 
 namespace arithmetic
 {
-	template <typename T>
-	vec<T> apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec, function<T(T)> apply);
-
-	template <typename T>
-	vec<T> apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx, function<T(T)> apply);
-
-	template <typename T>
-	tuple<vec<T>, vec<T>> apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec,
-		function<T(T)> apply, function<T(T, T)> again);
-
-	template <typename T>
-	tuple<vec<T>, vec<T>> apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx,
-		function<T(T)> apply, function<T(T, T)> again);
-
 	template <typename T>
 	vec<T> operator*(const mtx<T>& _mtx, const vec<T>& _vec);
 
@@ -44,20 +24,6 @@ private:
 	T* _data;
 	uint64_t _size_1;
 	uint64_t _size_2;
-
-	template <typename T>
-	friend vec<T> arithmetic::apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec, function<T(T)> apply);
-
-	template <typename T>
-	friend vec<T> arithmetic::apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx, function<T(T)> apply);
-
-	template <typename T>
-	friend tuple<vec<T>, vec<T>> arithmetic::apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec,
-		function<T(T)> apply, function<T(T, T)> again);
-
-	template <typename T>
-	friend tuple<vec<T>, vec<T>> arithmetic::apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx,
-		function<T(T)> apply, function<T(T, T)> again);
 
 	template <typename T>
 	friend vec<T> arithmetic::operator*(const mtx<T>& _mtx, const vec<T>& _vec);
@@ -80,7 +46,8 @@ public:
 			_data = initialize ? new T[_size_1 * _size_2]() : new T[_size_1 * _size_2];
 	}
 
-	mtx(initializer_list<initializer_list<T>> list) : _size_1(list.size()), _size_2(list.begin()->size())
+	mtx(std::initializer_list<std::initializer_list<T>> list)
+		: _size_1(list.size()), _size_2(list.begin()->size())
 	{
 		if (_size_1 == (uint64_t)0 || _size_2 == (uint64_t)0)
 		{
@@ -92,7 +59,7 @@ public:
 		{
 			_data = initialize ? new T[_size_1 * _size_2]() : new T[_size_1 * _size_2];
 
-			const initializer_list<T>* lists = list.begin();
+			const std::initializer_list<T>* lists = list.begin();
 			uint64_t k = (uint64_t)0;
 
 			for (uint64_t i = (uint64_t)0; i < _size_1; ++i)
@@ -100,7 +67,6 @@ public:
 				if (lists[i].size() == _size_2)
 				{
 					const T* elems = lists[i].begin();
-
 					for (uint64_t j = (uint64_t)0; j < _size_2; ++j, ++k)
 						_data[k] = elems[j];
 				}
@@ -112,6 +78,8 @@ public:
 					_data = nullptr;
 					_size_1 = (uint64_t)0;
 					_size_2 = (uint64_t)0;
+
+					break;
 				}
 			}
 		}
@@ -200,6 +168,32 @@ public:
 		o._size_2 = (uint64_t)0;
 
 		return *this;
+	}
+
+	mtx<T>& operator+=(const mtx<T>& o)
+	{
+		if (_size_1 == o._size_1 && _size_2 == o._size_2)
+		{
+			for (uint64_t i = (uint64_t)0; i < _size_1 * _size_2; ++i)
+				_data[i] += o._data[i];
+
+			return *this;
+		}
+		else
+			throw std::exception(mtx_sizes_error);
+	}
+
+	mtx<T>& operator-=(const mtx<T>& o)
+	{
+		if (_size_1 == o._size_1 && _size_2 == o._size_2)
+		{
+			for (uint64_t i = (uint64_t)0; i < _size_1 * _size_2; ++i)
+				_data[i] -= o._data[i];
+
+			return *this;
+		}
+		else
+			throw std::exception(mtx_sizes_error);
 	}
 
 	const T& operator()(uint64_t index_1, uint64_t index_2) const

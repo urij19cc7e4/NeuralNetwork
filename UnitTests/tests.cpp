@@ -10,16 +10,17 @@
 #include "../NeuralNetwork/rnn.h"
 #include "../NeuralNetwork/nnb.h"
 
-#include "../NeuralNetwork/fnn_params.h"
-#include "../NeuralNetwork/fnn_activs.h"
-#include "../NeuralNetwork/fnn_derivs.h"
-#include "../NeuralNetwork/fnn_inits.h"
+#include "../NeuralNetwork/nn_params.h"
+#include "../NeuralNetwork/nn_activs.h"
+#include "../NeuralNetwork/nn_derivs.h"
+#include "../NeuralNetwork/nn_inits.h"
 
 using namespace std;
-using namespace fnn_params;
-using namespace fnn_activs;
-using namespace fnn_derivs;
 using namespace arithmetic;
+using namespace nn_params;
+using namespace nn_activs;
+using namespace nn_derivs;
+using namespace nn_inits;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace UnitTests
@@ -29,63 +30,63 @@ namespace UnitTests
 	public:
 		TEST_METHOD(FNNActivationTest)
 		{
-			Assert::AreEqual((double)1, activation<fnn_activ::signed_pos>((double)2,(double)1));
-			Assert::AreEqual((double)1, activation<fnn_activ::signed_pos>((double)0, (double)1));
-			Assert::AreEqual((double)-1, activation<fnn_activ::signed_pos>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::signed_pos>((double)2,(double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::signed_pos>((double)0, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::signed_pos>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::signed_neg>((double)2, (double)1));
-			Assert::AreEqual((double)-1, activation<fnn_activ::signed_neg>((double)0, (double)1));
-			Assert::AreEqual((double)-1, activation<fnn_activ::signed_neg>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::signed_neg>((double)2, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::signed_neg>((double)0, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::signed_neg>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::thresh_pos>((double)2, (double)1));
-			Assert::AreEqual((double)1, activation<fnn_activ::thresh_pos>((double)0, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::thresh_pos>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::thresh_pos>((double)2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::thresh_pos>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::thresh_pos>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::thresh_neg>((double)2, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::thresh_neg>((double)0, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::thresh_neg>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::thresh_neg>((double)2, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::thresh_neg>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::thresh_neg>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::step_sym>((double)2, (double)1));
-			Assert::AreEqual((double)0.5, activation<fnn_activ::step_sym>((double)0.5, (double)1));
-			Assert::AreEqual((double)-1, activation<fnn_activ::step_sym>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::step_sym>((double)2, (double)1));
+			Assert::AreEqual((double)0.5, activation<nn_activ_t::step_sym>((double)0.5, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::step_sym>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::step_pos>((double)2, (double)1));
-			Assert::AreEqual((double)0.5, activation<fnn_activ::step_pos>((double)0.5, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::step_pos>((double)-2, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::step_pos>((double)2, (double)1));
+			Assert::AreEqual((double)0.5, activation<nn_activ_t::step_pos>((double)0.5, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::step_pos>((double)-2, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::step_neg>((double)2, (double)1));
-			Assert::AreEqual((double)-0.5, activation<fnn_activ::step_neg>((double)-0.5, (double)1));
-			Assert::AreEqual((double)-1, activation<fnn_activ::step_neg>((double)-2, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::step_neg>((double)2, (double)1));
+			Assert::AreEqual((double)-0.5, activation<nn_activ_t::step_neg>((double)-0.5, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::step_neg>((double)-2, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::rad_bas_pos>((double)0, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::rad_bas_pos>((double)0, (double)1));
 
-			Assert::AreEqual((double)-1, activation<fnn_activ::rad_bas_neg>((double)0, (double)1));
+			Assert::AreEqual((double)-1, activation<nn_activ_t::rad_bas_neg>((double)0, (double)1));
 
-			Assert::AreEqual((double)0.5, activation<fnn_activ::sigmoid_log>((double)0, (double)1));
+			Assert::AreEqual((double)0.5, activation<nn_activ_t::sigmoid_log>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::sigmoid_rat>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::sigmoid_rat>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::atan>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::atan>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::tanh>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::tanh>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::elu>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::elu>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::gelu>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::gelu>((double)0, (double)1));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::lelu>((double)1, (double)0.0625));
-			Assert::AreEqual((double)0, activation<fnn_activ::lelu>((double)0, (double)0.0625));
-			Assert::AreEqual((double)-0.0625, activation<fnn_activ::lelu>((double)-1, (double)0.0625));
+			Assert::AreEqual((double)1, activation<nn_activ_t::lelu>((double)1, (double)0.0625));
+			Assert::AreEqual((double)0, activation<nn_activ_t::lelu>((double)0, (double)0.0625));
+			Assert::AreEqual((double)-0.0625, activation<nn_activ_t::lelu>((double)-1, (double)0.0625));
 
-			Assert::AreEqual((double)1, activation<fnn_activ::relu>((double)1, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::relu>((double)0, (double)1));
-			Assert::AreEqual((double)0, activation<fnn_activ::relu>((double)-1, (double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::relu>((double)1, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::relu>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::relu>((double)-1, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::mish>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::mish>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::swish>((double)0, (double)1));
+			Assert::AreEqual((double)0, activation<nn_activ_t::swish>((double)0, (double)1));
 
-			Assert::AreEqual((double)0, activation<fnn_activ::softplus>((double)-100, (double)1), (double)0.001);
+			Assert::AreEqual((double)0, activation<nn_activ_t::softplus>((double)-100, (double)1), (double)0.001);
 		}
 
 		TEST_METHOD(FNNDerivationTest)

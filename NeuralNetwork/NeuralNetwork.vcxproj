@@ -195,10 +195,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data.h" />
-    <ClInclude Include="fnn_activs.h" />
-    <ClInclude Include="fnn_derivs.h" />
-    <ClInclude Include="fnn_inits.h" />
-    <ClInclude Include="fnn_params.h" />
+    <ClInclude Include="light_appx.h" />
+    <ClInclude Include="nn_activs.h" />
+    <ClInclude Include="nn_derivs.h" />
+    <ClInclude Include="nn_inits.h" />
+    <ClInclude Include="nn_params.h" />
+    <ClInclude Include="rand_sel.h" />
     <ClInclude Include="vec.h" />
     <ClInclude Include="cnn.h" />
     <ClInclude Include="fnn.h" />

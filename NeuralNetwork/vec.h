@@ -1,12 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <functional>
-#include <tuple>
-
 #include "data.h"
-
-using namespace std;
 
 template <typename T, bool initialize>
 class mtx;
@@ -16,20 +10,6 @@ class vec;
 
 namespace arithmetic
 {
-	template <typename T>
-	vec<T> apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec, function<T(T)> apply);
-
-	template <typename T>
-	vec<T> apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx, function<T(T)> apply);
-
-	template <typename T>
-	tuple<vec<T>, vec<T>> apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec,
-		function<T(T)> apply, function<T(T, T)> again);
-
-	template <typename T>
-	tuple<vec<T>, vec<T>> apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx,
-		function<T(T)> apply, function<T(T, T)> again);
-
 	template <typename T>
 	vec<T> operator*(const mtx<T>& _mtx, const vec<T>& _vec);
 
@@ -45,20 +25,6 @@ private:
 	uint64_t _size;
 
 	template <typename T>
-	friend vec<T> arithmetic::apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec, function<T(T)> apply);
-
-	template <typename T>
-	friend vec<T> arithmetic::apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx, function<T(T)> apply);
-
-	template <typename T>
-	friend tuple<vec<T>, vec<T>> arithmetic::apply_multiply(const mtx<T>& _mtx, const vec<T>& _vec,
-		function<T(T)> apply, function<T(T, T)> again);
-
-	template <typename T>
-	friend tuple<vec<T>, vec<T>> arithmetic::apply_multiply(const vec<T>& _vec, const mtx<T>& _mtx,
-		function<T(T)> apply, function<T(T, T)> again);
-
-	template <typename T>
 	friend vec<T> arithmetic::operator*(const mtx<T>& _mtx, const vec<T>& _vec);
 
 	template <typename T>
@@ -72,7 +38,7 @@ public:
 		_data = size == (uint64_t)0 ? nullptr : initialize ? new T[_size]() : new T[_size];
 	}
 
-	vec(initializer_list<T> list) : _size(list.size())
+	vec(std::initializer_list<T> list) : _size(list.size())
 	{
 		if (_size == (uint64_t)0)
 			_data = nullptr;
@@ -158,6 +124,32 @@ public:
 		o._size = (uint64_t)0;
 
 		return *this;
+	}
+
+	vec<T>& operator+=(const vec<T>& o)
+	{
+		if (_size == o._size)
+		{
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] += o._data[i];
+
+			return *this;
+		}
+		else
+			throw std::exception(vec_sizes_error);
+	}
+
+	vec<T>& operator-=(const vec<T>& o)
+	{
+		if (_size == o._size)
+		{
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] -= o._data[i];
+
+			return *this;
+		}
+		else
+			throw std::exception(vec_sizes_error);
 	}
 
 	const T& operator()(uint64_t index) const

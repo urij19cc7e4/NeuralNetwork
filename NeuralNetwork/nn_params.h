@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-namespace fnn_params
+namespace nn_params
 {
-	enum class fnn_activ : uint8_t
+	enum class nn_activ_t : uint8_t
 	{
 		signed_pos,
 		signed_neg,
@@ -29,25 +29,25 @@ namespace fnn_params
 		__count__
 	};
 
-	enum class fnn_init_t : uint8_t
+	enum class nn_init_t : uint8_t
 	{
 		normal,
 		uniform,
 		__count__
 	};
 
-	template <fnn_init_t init>
-	struct fnn_init;
+	template <nn_init_t init>
+	struct nn_init;
 
 	template <>
-	struct fnn_init<fnn_init_t::normal>
+	struct nn_init<nn_init_t::normal>
 	{
 		double mean;
 		double sigm;
 	};
 
 	template <>
-	struct fnn_init<fnn_init_t::uniform>
+	struct nn_init<nn_init_t::uniform>
 	{
 		double max;
 		double min;

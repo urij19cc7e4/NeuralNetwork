@@ -5,62 +5,59 @@
 #include <random>
 
 #include "rfm.h"
-#include "fnn_params.h"
-#include "fnn_activs.h"
-#include "fnn_derivs.h"
-#include "fnn_inits.h"
+#include "nn_params.h"
+#include "nn_activs.h"
+#include "nn_derivs.h"
+#include "nn_inits.h"
+#include "light_appx.h"
+#include "rand_sel.h"
 
 using namespace std;
 
 using namespace arithmetic;
-using namespace fnn_params;
-using namespace fnn_activs;
-using namespace fnn_derivs;
-using namespace fnn_inits;
+using namespace nn_params;
+using namespace nn_activs;
+using namespace nn_derivs;
+using namespace nn_inits;
 
-template <fnn_activ activ, fnn_init_t init_t>
+template <nn_activ_t activ, nn_init_t init>
 class fnnl
 {
 private:
 	mtx<double> _weights;
-	double _bias_weight;
-	double _activ_param;
+	vec<double> _bias_ws;
 
 public:
-	fnnl() noexcept
-		: _weights(), _bias_weight((double)0), _activ_param((double)1) {}
+	fnnl() noexcept : _weights(), _bias_ws() {}
 
-	fnnl(uint64_t isize, uint64_t osize, double activ_param = (double)1)
-		: _weights(osize, isize), _bias_weight((double)0), _activ_param(activ_param)
+	fnnl(uint64_t isize, uint64_t osize, double param) : _weights(osize, isize), _bias_ws(osize)
 	{
 		if (isize == (uint64_t)0 || osize == (uint64_t)0)
 			throw exception("FNN layer initialized with null");
 		else
 		{
-			random_device rand_dev;
-			mt19937_64 rand_gen(rand_dev());
-			initializer<activ, init_t> dstr(isize, osize, activ_param);
+			mt19937_64 rand_gen((random_device())());
+			initializer<activ, init> dstr(isize, osize, param);
 
 			for (uint64_t i = (uint64_t)0; i < isize * osize; ++i)
 				_weights(i) = dstr(rand_gen);
+
+			for (uint64_t i = (uint64_t)0; i < osize; ++i)
+				_bias_ws(i) = (double)0;
 		}
 	}
 
-	fnnl(const mtx<double>& weights, double bias_weight = (double)0, double activ_param = (double)1)
-		: _weights(weights), _bias_weight(bias_weight), _activ_param(activ_param) {}
+	fnnl(const mtx<double>& weights, const vec<double>& bias_ws) : _weights(weights), _bias_ws(bias_ws) {}
 
-	fnnl(mtx<double>&& weights, double bias_weight = (double)0, double activ_param = (double)1) noexcept
-		: _weights(move(weights)), _bias_weight(bias_weight), _activ_param(activ_param) {}
+	fnnl(mtx<double>&& weights, vec<double>&& bias_ws) noexcept : _weights(move(weights)), _bias_ws(move(bias_ws)) {}
 
-	fnnl(const fnnl& o)
-		: _weights(o._weights), _bias_weight(o._bias_weight), _activ_param(o._activ_param) {}
+	fnnl(const fnnl& o) : _weights(o._weights), _bias_ws(o._bias_ws) {}
 
-	fnnl(fnnl&& o) noexcept
-		: _weights(move(o._weights)), _bias_weight(o._bias_weight), _activ_param(o._activ_param) {}
+	fnnl(fnnl&& o) noexcept : _weights(move(o._weights)), _bias_ws(move(o._bias_ws)) {}
 
 	~fnnl() {}
 
-	vec<double> pass_bwd(const vec<double>& output) const
+	vec<double> pass_bwd(const vec<double>& output, double param) const
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
@@ -72,53 +69,79 @@ public:
 			throw exception("Given vector size and FNN layer output vector size do not match");
 	}
 
-	vec<double> pass_fwd(const vec<double>& input) const
+	vec<double> pass_fwd(const vec<double>& input, double param) const
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
 		else if (_weights.get_size_2() == input.get_size())
-			return apply_multiply<double>(_weights, input,
-				[=](double x) -> double { return activation<activ>(_bias_weight + x, _activ_param); });
+		{
+			vec<double> result = _weights * input;
+
+			__assume(result.get_size() == _bias_ws.get_size());
+			for (uint64_t i = (uint64_t)0; i < result.get_size(); ++i)
+				result(i) = activation<activ>(result(i) + _bias_ws(i), param);
+
+			return result;
+		}
 		else
 			throw exception("Given vector size and FNN layer input vector size do not match");
 	}
 
-	vec<double> train_bwd(const vec<double>& deltas) const
+	tuple<vec<double>, vec<double>> train_bwd(const vec<double>& grads, const vec<double>& grads_bias) const
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
-		else if (_weights.get_size_1() == deltas.get_size())
-			return deltas * _weights;
+		else if (_weights.get_size_1() == grads.get_size() && _weights.get_size_1() == grads_bias.get_size())
+			return tuple<vec<double>, vec<double>>
+		{
+			move(grads* _weights),
+				move(grads_bias* _weights)
+		};
 		else
 			throw exception("Given vector size and FNN layer output vector size do not match");
 	}
 
-	tuple<vec<double>, vec<double>> train_fwd(const vec<double>& input) const
+	tuple<vec<double>, vec<double>> train_fwd(const vec<double>& input, double param) const
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
 		else if (_weights.get_size_2() == input.get_size())
-			return apply_multiply<double>(_weights, input,
-				[=](double x) -> double { return activation<activ>(_bias_weight + x, _activ_param); },
-				[=](double x, double y) -> double { return derivation<activ>(_bias_weight + x, y, _activ_param); });
+		{
+			tuple<vec<double>, vec<double>> result =
+			{
+				move(_weights * input),
+				vec<double>(_weights.get_size_1())
+			};
+
+			__assume(get<(size_t)0>(result).get_size() == _weights.get_size_1());
+			for (uint64_t i = (uint64_t)0; i < _weights.get_size_1(); ++i)
+			{
+				double x = get<(size_t)0>(result)(i) + _bias_ws(i);
+				double y = activation<activ>(x, param);
+
+				get<(size_t)0>(result)(i) = y;
+				get<(size_t)1>(result)(i) = derivation<activ>(x, y, param);
+			}
+
+			return result;
+		}
 		else
 			throw exception("Given vector size and FNN layer input vector size do not match");
 	}
 
-	void train_upd(const vec<double>& deltas, const vec<double>& input, double speed)
+	void train_upd(const mtx<double>& weights_ds, const vec<double>& bias_ws_ds)
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
-		else if (_weights.get_size_1() == deltas.get_size() && _weights.get_size_2() == input.get_size())
+		else if (_weights.get_size_1() == weights_ds.get_size_1()
+			&& _weights.get_size_2() == weights_ds.get_size_2()
+			&& _bias_ws.get_size() == bias_ws_ds.get_size())
 		{
-			uint64_t k = (uint64_t)0;
-
-			for (uint64_t i = (uint64_t)0; i < _weights.get_size_1(); ++i)
-				for (uint64_t j = (uint64_t)0; j < _weights.get_size_2(); ++j, ++k)
-					_weights(k) -= deltas(i) * input(j) * speed;
+			_weights += weights_ds;
+			_bias_ws += bias_ws_ds;
 		}
 		else
-			throw exception("Given vector size and FNN layer input vector size do not match");
+			throw exception("Given deltas sizes and FNN weights sizes do not match");
 	}
 
 	uint64_t get_isize() const noexcept
@@ -131,21 +154,15 @@ public:
 		return _weights.get_size_1();
 	}
 
-	double get_param() const noexcept
-	{
-		return _activ_param;
-	}
-
 	bool is_empty() const noexcept
 	{
-		return _weights.is_empty();
+		return _weights.is_empty() || _bias_ws.is_empty();
 	}
 
 	fnnl& operator=(const fnnl& o)
 	{
 		_weights = o._weights;
-		_bias_weight = o._bias_weight;
-		_activ_param = o._activ_param;
+		_bias_ws = o._bias_ws;
 
 		return *this;
 	}
@@ -153,62 +170,64 @@ public:
 	fnnl& operator=(fnnl&& o) noexcept
 	{
 		_weights = move(o._weights);
-		_bias_weight = o._bias_weight;
-		_activ_param = o._activ_param;
+		_bias_ws = move(o._bias_ws);
 
 		return *this;
 	}
 };
 
-template <fnn_activ activ, fnn_init_t init_t>
+template <nn_activ_t activ, nn_init_t init = nn_init_t::normal>
 class fnn
 {
 private:
-	fnnl<activ, init_t>* _layers;
+	fnnl<activ, init>* _layers;
 	uint64_t _count;
+	double _param;
 
 public:
-	fnn() noexcept : _layers(nullptr), _count((uint64_t)0) {}
+	fnn() noexcept : _layers(nullptr), _count((uint64_t)0), _param((double)1) {}
 
-	fnn(uint64_t isize, uint64_t osize, uint64_t ssize, uint64_t count, double param = (double)1) : _count(count)
+	fnn(uint64_t isize, uint64_t osize, uint64_t ssize, uint64_t count, double param = (double)1)
+		: _count(count), _param(param)
 	{
 		if (isize == (uint64_t)0 || osize == (uint64_t)0
 			|| (ssize == (uint64_t)0 && count > (uint64_t)1) || count == (uint64_t)0)
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
+			_param = (double)1;
 
 			throw exception("FNN layer(s) initialized with null(s)");
 		}
 		else
 		{
-			_layers = new fnnl<activ, init_t>[_count]();
+			_layers = new fnnl<activ, init>[_count]();
 
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
-				_layers[i] = fnnl<activ, init_t>(
+				_layers[i] = fnnl<activ, init>(
 					i == (uint64_t)0 ? isize : ssize,
-					i == _count - (uint64_t)1 ? osize : ssize, param);
+					i == _count - (uint64_t)1 ? osize : ssize, _param);
 		}
 	}
 
-	fnn(const fnn_layer_info* info, uint64_t count, double param = (double)1) : _count(count)
+	fnn(const fnn_layer_info* info, uint64_t count, double param = (double)1)
+		: _count(count), _param(param)
 	{
 		if (info == nullptr || count == (uint64_t)0)
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
+			_param = (double)1;
 
 			throw exception("FNN layer(s) initialized with null(s)");
 		}
 		else
 		{
-			_layers = new fnnl<activ, init_t>[_count]();
+			_layers = new fnnl<activ, init>[_count]();
 
-			uint64_t prev_size = info[0].isize;
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
-			{
-				if (info[i].isize == prev_size)
-					_layers[i] = fnnl<activ, init_t>(info[i].isize, info[i].osize, param);
+				if (i == (uint64_t)0 || info[i].isize == info[i - (uint64_t)1].osize)
+					_layers[i] = fnnl<activ, init>(info[i].isize, info[i].osize, _param);
 				else
 				{
 					if (_layers != nullptr)
@@ -216,55 +235,56 @@ public:
 
 					_layers = nullptr;
 					_count = (uint64_t)0;
+					_param = (double)1;
 
 					throw exception("FNN layers sizes do not match");
 				}
-
-				prev_size = info[i].osize;
-			}
 		}
 	}
 
 	fnn(initializer_list<uint64_t> sizes, double param = (double)1)
-		: _count(sizes.size() <= (uint64_t)1 ? (uint64_t)0 : sizes.size() - (uint64_t)1)
+		: _count(sizes.size() <= (uint64_t)1 ? (uint64_t)0 : sizes.size() - (uint64_t)1), _param(param)
 	{
 		if (_count == (uint64_t)0)
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
+			_param = (double)1;
 
 			throw exception("FNN layer(s) initialized with null(s)");
 		}
 		else
 		{
-			_layers = new fnnl<activ, init_t>[_count]();
+			_layers = new fnnl<activ, init>[_count]();
 
 			const uint64_t* sizes_arr = sizes.begin();
-			for (uint64_t i = (uint64_t)0; i < _count;++i)
-				_layers[i] = fnnl<activ, init_t>(sizes_arr[i], sizes_arr[i+(uint64_t)1], param);
+			for (uint64_t i = (uint64_t)0; i < _count; ++i)
+				_layers[i] = fnnl<activ, init>(sizes_arr[i], sizes_arr[i + (uint64_t)1], _param);
 		}
 	}
 
-	fnn(const fnn& o) : _count(o._count)
+	fnn(const fnn& o) : _count(o._count), _param(o._param)
 	{
 		if (o.is_empty())
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
+			_param = (double)1;
 		}
 		else
 		{
-			_layers = new fnnl<activ, init_t>[_count]();
+			_layers = new fnnl<activ, init>[_count]();
 
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
 				_layers[i] = o._layers[i];
 		}
 	}
 
-	fnn(fnn&& o) noexcept : _layers(o._layers), _count(o._count)
+	fnn(fnn&& o) noexcept : _layers(o._layers), _count(o._count), _param(o._param)
 	{
 		o._layers = nullptr;
 		o._count = (uint64_t)0;
+		o._param = (double)1;
 	}
 
 	~fnn()
@@ -303,10 +323,10 @@ public:
 			throw exception("FNN is not initialized");
 		else if (_layers[(uint64_t)0].get_isize() == input.get_size())
 		{
-			vec<double> result = _layers[(uint64_t)0].pass_fwd(input);
+			vec<double> result = _layers[(uint64_t)0].pass_fwd(input, _param);
 
 			for (uint64_t i = (uint64_t)1; i < _count; ++i)
-				result = _layers[i].pass_fwd(result);
+				result = _layers[i].pass_fwd(result, _param);
 
 			return result;
 		}
@@ -321,7 +341,7 @@ public:
 		else if (_layers[(uint64_t)0].get_isize() == input.get_size())
 		{
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
-				input = _layers[i].pass_fwd(input);
+				input = _layers[i].pass_fwd(input, _param);
 
 			return input;
 		}
@@ -329,94 +349,174 @@ public:
 			throw exception("Given vector size and FNN input vector size do not match");
 	}
 
-	vec<double> train(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
-		uint64_t max_epochs = (uint64_t)1000, double min_errors = (double)1e-6, double speed = (double)0.05)
+	vec<double> train_batch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
+		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)0.01, double speed = (double)0.05)
 	{
-		uint64_t last_layer = _count - (uint64_t)1;
+		if (is_empty())
+			throw exception("FNN is not initialized");
+		else if (input == nullptr || output == nullptr || batch_size == (uint64_t)0)
+			throw exception("Given empty train batch");
+		else
+			throw exception("Not implemented");
+	}
 
+	vec<double> train_stoch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
+		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.5,
+		double alpha_end = (double)0, double speed_start = (double)0.5, double speed_end = (double)0.05)
+	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
 		else if (input == nullptr || output == nullptr || batch_size == (uint64_t)0)
 			throw exception("Given empty train batch");
 		else
 		{
+			uint64_t last_layer = _count - (uint64_t)1;
+
 			for (uint64_t i = (uint64_t)0; i < batch_size; ++i)
 				if (input[i].is_empty() || _layers[(uint64_t)0].get_isize() != input[i].get_size()
 					|| output[i].is_empty() || _layers[last_layer].get_osize() != output[i].get_size())
 					throw exception("Given wrong train batch");
 
-			vec<double> errors(max_epochs);
+			vec<double> agv_errors(max_epochs);
+
+			light_appx::light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
+			light_appx::light_appx speed_appxer(speed_start, speed_end, max_epochs);
+
+			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)100
+				? (rand_sel::rand_sel_i<uint64_t>*)
+				(new rand_sel::rand_sel<uint64_t>(batch_size - (uint64_t)1, (uint64_t)0))
+				: (rand_sel::rand_sel_i<uint64_t>*)
+				(new rand_sel::rand_sel<uint64_t, true>(batch_size - (uint64_t)1, (uint64_t)0));
 
 			vec<double>* activs = new vec<double>[_count]();
 			vec<double>* derivs = new vec<double>[_count]();
-			vec<double>* deltas = new vec<double>[_count]();
 
-			deltas[last_layer] = vec<double>(_layers[last_layer].get_osize());
+			vec<double>* grads = new vec<double>[_count]();
+			vec<double>* grads_bias = new vec<double>[_count]();
+
+			mtx<double>* deltas = new mtx<double>[_count]();
+			vec<double>* deltas_bias = new vec<double>[_count]();
+
+			grads[last_layer] = vec<double>(_layers[last_layer].get_osize());
+			grads_bias[last_layer] = vec<double>(_layers[last_layer].get_osize());
+
+			for (uint64_t i = (uint64_t)0; i < _count; ++i)
+			{
+				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
+				deltas_bias[i] = vec<double>(_layers[i].get_osize());
+
+				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
+
+				for (uint64_t j = (uint64_t)0; j < mtx_size; ++j)
+					deltas[i](j) = (double)0;
+
+				for (uint64_t j = (uint64_t)0; j < deltas_bias[i].get_size(); ++j)
+					deltas_bias[i](j) = (double)0;
+			}
 
 			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
 			{
-				double error = (double)0;
+				double avg_error = (double)0;
+				double alpha_cur = alpha_appxer.forward(), speed_cur = speed_appxer.forward();
+
+				selector->reset();
 
 				for (uint64_t j = (uint64_t)0; j < batch_size; ++j)
 				{
+					uint64_t num = selector->next();
+
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
 						uint64_t k_prev = k - (uint64_t)1;
 						tuple<vec<double>, vec<double>> train_fwd_result =
-							_layers[k].train_fwd(k == (uint64_t)0 ? input[j] : activs[k_prev]);
+							_layers[k].train_fwd(k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1], _param);
 
 						activs[k] = move(get<(size_t)0>(train_fwd_result));
 						derivs[k] = move(get<(size_t)1>(train_fwd_result));
 					}
 
+					__assume(last_layer < _count);
 					for (uint64_t k = (uint64_t)0; k < _layers[last_layer].get_osize(); ++k)
 					{
-						double difference = activs[last_layer](k) - output[j](k);
+						double loss = output[num](k) - activs[last_layer](k);
 
-						deltas[last_layer](k) = derivs[last_layer](k) * difference;
-						error += difference * difference;
+						grads[last_layer](k) = derivs[last_layer](k) * loss;
+						grads_bias[last_layer](k) = loss;
+						avg_error += loss * loss;
 					}
 
+					__assume(last_layer < _count);
 					for (uint64_t k = last_layer; k > (uint64_t)0; --k)
 					{
 						uint64_t k_prev = k - (uint64_t)1;
-						deltas[k_prev] = _layers[k].train_bwd(deltas[k]);
+						tuple<vec<double>, vec<double>> train_bwd_result =
+							_layers[k].train_bwd(grads[k], grads_bias[k]);
 
-						for (uint64_t l = (uint64_t)0; l < deltas[k_prev].get_size(); ++l)
-							deltas[k_prev](l) *= derivs[k_prev](l);
+						grads[k_prev] = move(get<(size_t)0>(train_bwd_result));
+						grads_bias[k_prev] = move(get<(size_t)1>(train_bwd_result));
+
+						for (uint64_t l = (uint64_t)0; l < grads[k_prev].get_size(); ++l)
+							grads[k_prev](l) *= derivs[k_prev](l);
 					}
 
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
-						_layers[k].train_upd(deltas[k],
-							k == (uint64_t)0 ? input[j] : activs[k - (uint64_t)1], speed);
+					{
+						uint64_t l = (uint64_t)0;
+
+						__assume(deltas[k].get_size_1() == deltas_bias[k].get_size());
+						for (uint64_t m = (uint64_t)0; m < deltas[k].get_size_1(); ++m)
+						{
+							for (uint64_t n = (uint64_t)0; n < deltas[k].get_size_2(); ++n, ++l)
+								deltas[k](l) = deltas[k](l) * alpha_cur + grads[k](m)
+								* (k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1])(n) * speed_cur;
+
+							deltas_bias[k](m) = deltas_bias[k](m) * alpha_cur + grads_bias[k](m) * speed_cur;
+						}
+
+						_layers[k].train_upd(deltas[k], deltas_bias[k]);
+					}
 				}
 
-				if (error < min_errors)
+				avg_error /= (double)batch_size;
+
+				if (avg_error < min_error)
 				{
 					vec<double> new_errors(i + (uint64_t)1);
 
 					for (uint64_t j = (uint64_t)0; j < i; ++j)
-						new_errors(j) = errors(j);
-					new_errors(i) = error;
+						new_errors(j) = agv_errors(j);
+					new_errors(i) = avg_error;
 
-					errors = move(new_errors);
+					agv_errors = move(new_errors);
 					break;
 				}
 				else
-					errors(i) = error;
+					agv_errors(i) = avg_error;
 			}
+
+			delete selector;
 
 			delete[] activs;
 			delete[] derivs;
-			delete[] deltas;
 
-			return errors;
+			delete[] grads;
+			delete[] grads_bias;
+
+			delete[] deltas;
+			delete[] deltas_bias;
+
+			return agv_errors;
 		}
 	}
 
 	uint64_t get_count() const noexcept
 	{
 		return _count;
+	}
+
+	double get_param() const noexcept
+	{
+		return _param;
 	}
 
 	bool is_empty() const noexcept
@@ -433,11 +533,13 @@ public:
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
+			_param = (double)1;
 		}
 		else
 		{
-			_layers = new fnnl<activ, init_t>[o._count]();
+			_layers = new fnnl<activ, init>[o._count]();
 			_count = o._count;
+			_param = o._param;
 
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
 				_layers[i] = o._layers[i];
@@ -453,9 +555,11 @@ public:
 
 		_layers = o._layers;
 		_count = o._count;
+		_param = o._param;
 
 		o._layers = nullptr;
 		o._count = (uint64_t)0;
+		o._param = (double)1;
 
 		return *this;
 	}

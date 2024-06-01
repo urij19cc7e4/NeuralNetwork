@@ -62,19 +62,25 @@
     <ClInclude Include="rnn.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="fnn_params.h">
+    <ClInclude Include="nn_params.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="fnn_activs.h">
+    <ClInclude Include="nn_activs.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="fnn_inits.h">
+    <ClInclude Include="nn_inits.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="fnn_derivs.h">
+    <ClInclude Include="nn_derivs.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="data.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="rand_sel.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="light_appx.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
