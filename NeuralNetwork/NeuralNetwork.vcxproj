@@ -86,7 +86,7 @@
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WXUSINGDLL</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -97,11 +97,16 @@
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <FloatingPointModel>Fast</FloatingPointModel>
       <CallingConvention>FastCall</CallingConvention>
+      <AdditionalIncludeDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include;C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\lib\vc_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxbase32u.lib;wxbase32u_net.lib;wxbase32u_xml.lib;wxexpat.lib;wxjpeg.lib;wxmsw32u_adv.lib;wxmsw32u_aui.lib;wxmsw32u_core.lib;wxmsw32u_gl.lib;wxmsw32u_html.lib;wxmsw32u_media.lib;wxmsw32u_propgrid.lib;wxmsw32u_qa.lib;wxmsw32u_ribbon.lib;wxmsw32u_richtext.lib;wxmsw32u_stc.lib;wxmsw32u_webview.lib;wxmsw32u_xrc.lib;wxpng.lib;wxregexu.lib;wxscintilla.lib;wxtiff.lib;wxzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -110,7 +115,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);WXUSINGDLL</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -123,6 +128,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <CallingConvention>FastCall</CallingConvention>
+      <AdditionalIncludeDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include;C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,13 +136,17 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\lib\vc_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxbase32u.lib;wxbase32u_net.lib;wxbase32u_xml.lib;wxexpat.lib;wxjpeg.lib;wxmsw32u_adv.lib;wxmsw32u_aui.lib;wxmsw32u_core.lib;wxmsw32u_gl.lib;wxmsw32u_html.lib;wxmsw32u_media.lib;wxmsw32u_propgrid.lib;wxmsw32u_qa.lib;wxmsw32u_ribbon.lib;wxmsw32u_richtext.lib;wxmsw32u_stc.lib;wxmsw32u_webview.lib;wxmsw32u_xrc.lib;wxpng.lib;wxregexu.lib;wxscintilla.lib;wxtiff.lib;wxzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WXUSINGDLL</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -148,11 +158,16 @@
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <FloatingPointModel>Fast</FloatingPointModel>
       <CallingConvention>FastCall</CallingConvention>
+      <AdditionalIncludeDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include;C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\lib\vc_x64_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxbase32u.lib;wxbase32u_net.lib;wxbase32u_xml.lib;wxexpat.lib;wxjpeg.lib;wxmsw32u_adv.lib;wxmsw32u_aui.lib;wxmsw32u_core.lib;wxmsw32u_gl.lib;wxmsw32u_html.lib;wxmsw32u_media.lib;wxmsw32u_propgrid.lib;wxmsw32u_qa.lib;wxmsw32u_ribbon.lib;wxmsw32u_richtext.lib;wxmsw32u_stc.lib;wxmsw32u_webview.lib;wxmsw32u_xrc.lib;wxpng.lib;wxregexu.lib;wxscintilla.lib;wxtiff.lib;wxzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -161,7 +176,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);WXUSINGDLL</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -174,6 +189,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <CallingConvention>FastCall</CallingConvention>
+      <AdditionalIncludeDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include;C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -181,6 +197,10 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>C:\Users\Urij\Visual Studio 2019\Libraries\Compiled\wxWidgets\lib\vc_x64_dll;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxbase32u.lib;wxbase32u_net.lib;wxbase32u_xml.lib;wxexpat.lib;wxjpeg.lib;wxmsw32u_adv.lib;wxmsw32u_aui.lib;wxmsw32u_core.lib;wxmsw32u_gl.lib;wxmsw32u_html.lib;wxmsw32u_media.lib;wxmsw32u_propgrid.lib;wxmsw32u_qa.lib;wxmsw32u_ribbon.lib;wxmsw32u_richtext.lib;wxmsw32u_stc.lib;wxmsw32u_webview.lib;wxmsw32u_xrc.lib;wxpng.lib;wxregexu.lib;wxscintilla.lib;wxtiff.lib;wxzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -192,6 +212,7 @@
     <ClCompile Include="nnb.cpp" />
     <ClCompile Include="rfm.cpp" />
     <ClCompile Include="rnn.cpp" />
+    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data.h" />
@@ -208,6 +229,10 @@
     <ClInclude Include="nnb.h" />
     <ClInclude Include="rfm.h" />
     <ClInclude Include="rnn.h" />
+    <ClInclude Include="window.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="wxwidgets.props" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

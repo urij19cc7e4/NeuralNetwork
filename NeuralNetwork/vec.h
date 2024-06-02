@@ -10,11 +10,11 @@ class vec;
 
 namespace arithmetic
 {
-	template <typename T>
-	vec<T> operator*(const mtx<T>& _mtx, const vec<T>& _vec);
+	template <typename T, bool initialize>
+	vec<T, initialize> operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
 
-	template <typename T>
-	vec<T> operator*(const vec<T>& _vec, const mtx<T>& _mtx);
+	template <typename T, bool initialize>
+	vec<T, initialize> operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
 }
 
 template <typename T, bool initialize>
@@ -24,11 +24,11 @@ private:
 	T* _data;
 	uint64_t _size;
 
-	template <typename T>
-	friend vec<T> arithmetic::operator*(const mtx<T>& _mtx, const vec<T>& _vec);
+	template <typename T, bool initialize>
+	friend vec<T, initialize> arithmetic::operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
 
-	template <typename T>
-	friend vec<T> arithmetic::operator*(const vec<T>& _vec, const mtx<T>& _mtx);
+	template <typename T, bool initialize>
+	friend vec<T, initialize> arithmetic::operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
 
 public:
 	vec() noexcept : _data(nullptr), _size((uint64_t)0) {}
@@ -90,7 +90,7 @@ public:
 		return _data == nullptr || _size == (uint64_t)0;
 	}
 
-	vec<T>& operator=(const vec<T>& o)
+	vec& operator=(const vec& o)
 	{
 		if (_data != nullptr)
 			delete[] _data;
@@ -112,7 +112,7 @@ public:
 		return *this;
 	}
 
-	vec<T>& operator=(vec<T>&& o) noexcept
+	vec& operator=(vec&& o) noexcept
 	{
 		if (_data != nullptr)
 			delete[] _data;
@@ -126,7 +126,7 @@ public:
 		return *this;
 	}
 
-	vec<T>& operator+=(const vec<T>& o)
+	vec& operator+=(const vec& o)
 	{
 		if (_size == o._size)
 		{
@@ -139,7 +139,7 @@ public:
 			throw std::exception(vec_sizes_error);
 	}
 
-	vec<T>& operator-=(const vec<T>& o)
+	vec& operator-=(const vec& o)
 	{
 		if (_size == o._size)
 		{

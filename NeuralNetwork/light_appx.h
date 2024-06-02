@@ -22,8 +22,10 @@ namespace light_appx
 			{
 				double ln_major = ln_start < ln_end ? ln_end : ln_start;
 				double ln_minor = ln_start < ln_end ? ln_start : ln_end;
+
 				double major = _start < _end ? _end : _start;
 				double minor = _start < _end ? _start : _end;
+
 				double value = (ln_major - log((exp(ln_major) - exp(ln_minor))
 					* (double)_pos / (double)(_count - (uint64_t)1) + exp(ln_minor)))
 					* (major - minor) / (ln_major - ln_minor);
@@ -87,6 +89,8 @@ namespace light_appx
 			_pos = o._pos;
 			_start = o._start;
 			_end = o._end;
+
+			return *this;
 		}
 
 		light_appx& operator=(light_appx&& o) noexcept
@@ -95,6 +99,8 @@ namespace light_appx
 			_pos = o._pos;
 			_start = o._start;
 			_end = o._end;
+
+			return *this;
 		}
 	};
 }

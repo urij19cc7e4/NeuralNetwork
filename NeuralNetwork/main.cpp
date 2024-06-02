@@ -32,10 +32,20 @@ using namespace std;
 
 void f()
 {
-	fnn<nn_params::nn_activ_t::sigmoid_rat, nn_params::nn_init_t::normal> network({ 2, 3, 1 });
+	fnn<nn_params::nn_activ_t::sigmoid_rat, nn_params::nn_init_t::normal> network({ 2, 2, 1 });
 
 	vec<double> input_t[] =
 	{
+		{ 1, 1 },
+		{ 0, 0 },
+		{ 1, 0 },
+		{ 0, 0 },
+		{ 0, 1 },
+		{ 1, 0 },
+		{ 1, 1 },
+		{ 0, 1 },
+		{ 1, 1 },
+		{ 0, 0 },
 		{ 1, 1 },
 		{ 0, 0 },
 		{ 1, 0 },
@@ -59,10 +69,20 @@ void f()
 		{ 0.0 },
 		{ 0.5 },
 		{ 0.0 },
+		{ 0.0 },
+		{ 0.0 },
+		{ 0.0 },
+		{ 0.5 },
+		{ 0.0 },
+		{ 0.5 },
+		{ 0.5 },
+		{ 0.0 },
+		{ 0.5 },
+		{ 0.0 },
 		{ 0.0 }
 	};
 
-	network.train_stoch_mode(input_t, output_t, 10, 10000,0,0.5,0,0.5,0.05);
+	vec<double> res = network.train_stoch_mode(input_t, output_t, 20, 10000,0,0.9,0,0.9,0.01);
 
 	cout << "0 xor 0 = " << network.pass_fwd({ 0, 0 })(0) << "\n";
 	cout << "0 xor 1 = " << network.pass_fwd({ 0, 1 })(0) << "\n";
@@ -70,7 +90,9 @@ void f()
 	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
 }
 
-int main()
+void run();
+
+int main(int argc,char*argv[])
 {
 	/*to_file<nn_params::nn_activ_t::signed_pos>("signed_pos");
 	to_file<nn_params::nn_activ_t::signed_neg>("signed_neg");
@@ -94,6 +116,7 @@ int main()
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
 
 	f();
+	run();
 
 	getchar();
 }

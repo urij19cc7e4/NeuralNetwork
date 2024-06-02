@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <exception>
 #include <random>
+#include <omp.h>
 
 #include "rfm.h"
 #include "nn_params.h"
@@ -93,10 +94,10 @@ public:
 			throw exception("FNN layer is not initialized");
 		else if (_weights.get_size_1() == grads.get_size() && _weights.get_size_1() == grads_bias.get_size())
 			return tuple<vec<double>, vec<double>>
-		{
-			move(grads* _weights),
+			{
+				move(grads* _weights),
 				move(grads_bias* _weights)
-		};
+			};
 		else
 			throw exception("Given vector size and FNN layer output vector size do not match");
 	}
@@ -350,19 +351,211 @@ public:
 	}
 
 	vec<double> train_batch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
-		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)0.01, double speed = (double)0.05)
+		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.9,
+		double alpha_end = (double)0, double speed_start = (double)0.9, double speed_end = (double)0.01)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
 		else if (input == nullptr || output == nullptr || batch_size == (uint64_t)0)
 			throw exception("Given empty train batch");
 		else
-			throw exception("Not implemented");
+		{
+			uint64_t copy_count = (uint64_t)(omp_get_max_threads() * (uint64_t)2 < batch_size
+				? omp_get_max_threads() * (uint64_t)2 : batch_size);
+			uint64_t cycles = batch_size / copy_count
+				+ (batch_size % copy_count == (uint64_t)0 ? (uint64_t)0 : (uint64_t)1);
+			uint64_t last_layer = _count - (uint64_t)1;
+
+			for (uint64_t i = (uint64_t)0; i < batch_size; ++i)
+				if (input[i].is_empty() || _layers[(uint64_t)0].get_isize() != input[i].get_size()
+					|| output[i].is_empty() || _layers[last_layer].get_osize() != output[i].get_size())
+					throw exception("Given wrong train batch");
+
+			vec<double> agv_errors(max_epochs);
+
+			light_appx::light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
+			light_appx::light_appx speed_appxer(speed_start, speed_end, max_epochs);
+
+			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
+				? (rand_sel::rand_sel_i<uint64_t>*)
+				(new rand_sel::rand_sel<uint64_t>(batch_size - (uint64_t)1, (uint64_t)0))
+				: (rand_sel::rand_sel_i<uint64_t>*)
+				(new rand_sel::rand_sel<uint64_t, true>(batch_size - (uint64_t)1, (uint64_t)0));
+			uint64_t* selectors = new uint64_t[copy_count];
+
+			vec<double>** arr_activs = new vec<double>*[copy_count];
+			vec<double>** arr_derivs = new vec<double>*[copy_count];
+
+			vec<double>** arr_grads = new vec<double>*[copy_count];
+			vec<double>** arr_grads_bias = new vec<double>*[copy_count];
+
+			mtx<double>* deltas = new mtx<double>[_count]();
+			vec<double>* deltas_bias = new vec<double>[_count]();
+
+			for (uint64_t i = (uint64_t)0; i < copy_count; ++i)
+			{
+				arr_activs[i] = new vec<double>[_count]();
+				arr_derivs[i] = new vec<double>[_count]();
+				arr_grads[i] = new vec<double>[_count]();
+				arr_grads_bias[i] = new vec<double>[_count]();
+
+				arr_grads[i][last_layer] = vec<double>(_layers[last_layer].get_osize());
+				arr_grads_bias[i][last_layer] = vec<double>(_layers[last_layer].get_osize());
+			}
+
+			for (uint64_t i = (uint64_t)0; i < _count; ++i)
+			{
+				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
+				deltas_bias[i] = vec<double>(_layers[i].get_osize());
+
+				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
+				uint64_t vec_size = deltas_bias[i].get_size();
+
+				for (uint64_t j = (uint64_t)0; j < mtx_size; ++j)
+					deltas[i](j) = (double)0;
+
+				for (uint64_t j = (uint64_t)0; j < vec_size; ++j)
+					deltas_bias[i](j) = (double)0;
+			}
+
+			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
+			{
+				double avg_error = (double)0;
+				double alpha_cur = alpha_appxer.forward(), speed_cur = speed_appxer.forward();
+
+				selector->reset();
+
+				for (uint64_t j = (uint64_t)0; j < cycles; ++j)
+				{
+					uint64_t copy_left = j == cycles - (uint64_t)1 ? batch_size - j * copy_count : copy_count;
+					double speed_new = speed_cur / (double)copy_left;
+
+					for (uint64_t copy_num = (uint64_t)0; copy_num < copy_left; ++copy_num)
+						selectors[copy_num] = selector->next();
+
+					#pragma omp parallel for reduction(+:avg_error) num_threads(copy_left)
+					for (int64_t omp_thread = (int64_t)0; omp_thread < copy_left; ++omp_thread)
+					{
+						uint64_t num = selectors[omp_thread];
+
+						vec<double>* activs = arr_activs[omp_thread];
+						vec<double>* derivs = arr_derivs[omp_thread];
+
+						vec<double>* grads = arr_grads[omp_thread];
+						vec<double>* grads_bias = arr_grads_bias[omp_thread];
+
+						for (uint64_t k = (uint64_t)0; k < _count; ++k)
+						{
+							uint64_t k_prev = k - (uint64_t)1;
+							tuple<vec<double>, vec<double>> train_fwd_result =
+								_layers[k].train_fwd(k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1], _param);
+
+							activs[k] = move(get<(size_t)0>(train_fwd_result));
+							derivs[k] = move(get<(size_t)1>(train_fwd_result));
+						}
+
+						__assume(last_layer < _count);
+						for (uint64_t k = (uint64_t)0; k < _layers[last_layer].get_osize(); ++k)
+						{
+							double loss = output[num](k) - activs[last_layer](k);
+
+							grads[last_layer](k) = derivs[last_layer](k) * loss;
+							grads_bias[last_layer](k) = loss;
+							avg_error += loss * loss;
+						}
+
+						__assume(last_layer < _count);
+						for (uint64_t k = last_layer; k > (uint64_t)0; --k)
+						{
+							__assume(k < _count);
+							uint64_t k_prev = k - (uint64_t)1;
+							tuple<vec<double>, vec<double>> train_bwd_result =
+								_layers[k].train_bwd(grads[k], grads_bias[k]);
+
+							__assume(k_prev >= (uint64_t)0);
+							grads[k_prev] = move(get<(size_t)0>(train_bwd_result));
+							grads_bias[k_prev] = move(get<(size_t)1>(train_bwd_result));
+
+							for (uint64_t l = (uint64_t)0; l < grads[k_prev].get_size(); ++l)
+								grads[k_prev](l) *= derivs[k_prev](l);
+						}
+					}
+
+					for (uint64_t k = (uint64_t)0; k < _count; ++k)
+					{
+						uint64_t mtx_size = deltas[k].get_size_1() * deltas[k].get_size_2();
+						uint64_t vec_size = deltas_bias[k].get_size();
+
+						for (uint64_t l = (uint64_t)0; l < mtx_size; ++l)
+							deltas[k](l) *= alpha_cur;
+
+						for (uint64_t l = (uint64_t)0; l < vec_size; ++l)
+							deltas_bias[k](l) *= alpha_cur;
+
+						for (uint64_t copy_num = (uint64_t)0; copy_num < copy_left; ++copy_num)
+						{
+							uint64_t l = (uint64_t)0;
+
+							__assume(deltas[k].get_size_1() == deltas_bias[k].get_size());
+							for (uint64_t m = (uint64_t)0; m < deltas[k].get_size_1(); ++m)
+							{
+								for (uint64_t n = (uint64_t)0; n < deltas[k].get_size_2(); ++n, ++l)
+									deltas[k](l) += arr_grads[copy_num][k](m)
+									* (k == (uint64_t)0 ? input[selectors[copy_num]]
+										: arr_activs[copy_num][k - (uint64_t)1])(n) * speed_new;
+
+								deltas_bias[k](m) += arr_grads_bias[copy_num][k](m) * speed_new;
+							}
+						}
+
+						_layers[k].train_upd(deltas[k], deltas_bias[k]);
+					}
+				}
+
+				avg_error /= (double)batch_size;
+
+				if (avg_error < min_error)
+				{
+					vec<double> new_errors(i + (uint64_t)1);
+
+					for (uint64_t j = (uint64_t)0; j < i; ++j)
+						new_errors(j) = agv_errors(j);
+					new_errors(i) = avg_error;
+
+					agv_errors = move(new_errors);
+					break;
+				}
+				else
+					agv_errors(i) = avg_error;
+			}
+
+			for (uint64_t i = (uint64_t)0; i < copy_count; ++i)
+			{
+				delete[] arr_activs[i];
+				delete[] arr_derivs[i];
+				delete[] arr_grads[i];
+				delete[] arr_grads_bias[i];
+			}
+
+			delete selector;
+			delete[] selectors;
+
+			delete[] arr_activs;
+			delete[] arr_derivs;
+
+			delete[] arr_grads;
+			delete[] arr_grads_bias;
+
+			delete[] deltas;
+			delete[] deltas_bias;
+
+			return agv_errors;
+		}
 	}
 
 	vec<double> train_stoch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
-		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.5,
-		double alpha_end = (double)0, double speed_start = (double)0.5, double speed_end = (double)0.05)
+		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.9,
+		double alpha_end = (double)0, double speed_start = (double)0.9, double speed_end = (double)0.01)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
@@ -382,7 +575,7 @@ public:
 			light_appx::light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
 			light_appx::light_appx speed_appxer(speed_start, speed_end, max_epochs);
 
-			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)100
+			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
 				? (rand_sel::rand_sel_i<uint64_t>*)
 				(new rand_sel::rand_sel<uint64_t>(batch_size - (uint64_t)1, (uint64_t)0))
 				: (rand_sel::rand_sel_i<uint64_t>*)
@@ -405,12 +598,13 @@ public:
 				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
 				deltas_bias[i] = vec<double>(_layers[i].get_osize());
 
-				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
+				uint64_t mtx_size=deltas[i].get_size_1()*deltas[i].get_size_2();
+				uint64_t vec_size=deltas_bias[i].get_size();
 
 				for (uint64_t j = (uint64_t)0; j < mtx_size; ++j)
 					deltas[i](j) = (double)0;
 
-				for (uint64_t j = (uint64_t)0; j < deltas_bias[i].get_size(); ++j)
+				for (uint64_t j = (uint64_t)0; j < vec_size; ++j)
 					deltas_bias[i](j) = (double)0;
 			}
 
@@ -421,7 +615,7 @@ public:
 
 				selector->reset();
 
-				for (uint64_t j = (uint64_t)0; j < batch_size; ++j)
+				for (int64_t j = (int64_t)0; j < batch_size; ++j)
 				{
 					uint64_t num = selector->next();
 
@@ -448,10 +642,12 @@ public:
 					__assume(last_layer < _count);
 					for (uint64_t k = last_layer; k > (uint64_t)0; --k)
 					{
+						__assume(k < _count);
 						uint64_t k_prev = k - (uint64_t)1;
 						tuple<vec<double>, vec<double>> train_bwd_result =
 							_layers[k].train_bwd(grads[k], grads_bias[k]);
 
+						__assume(k_prev >= (uint64_t)0);
 						grads[k_prev] = move(get<(size_t)0>(train_bwd_result));
 						grads_bias[k_prev] = move(get<(size_t)1>(train_bwd_result));
 
