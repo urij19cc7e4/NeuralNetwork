@@ -3,6 +3,9 @@
 #include "data.h"
 
 template <typename T, bool initialize>
+class tns;
+
+template <typename T, bool initialize>
 class mtx;
 
 template <typename T, bool initialize>
@@ -54,7 +57,7 @@ public:
 
 	vec(const vec& o) : _size(o._size)
 	{
-		if (o.is_empty())
+		if (o._data == nullptr)
 		{
 			_data = nullptr;
 			_size = (uint64_t)0;
@@ -87,7 +90,7 @@ public:
 
 	bool is_empty() const noexcept
 	{
-		return _data == nullptr || _size == (uint64_t)0;
+		return _data == nullptr;
 	}
 
 	vec& operator=(const vec& o)
@@ -95,7 +98,7 @@ public:
 		if (_data != nullptr)
 			delete[] _data;
 
-		if (o.is_empty())
+		if (o._data == nullptr)
 		{
 			_data = nullptr;
 			_size = (uint64_t)0;
@@ -128,7 +131,9 @@ public:
 
 	vec& operator+=(const vec& o)
 	{
-		if (_size == o._size)
+		if (_data == nullptr && o._data == nullptr)
+			return *this;
+		else if (_size == o._size)
 		{
 			for (uint64_t i = (uint64_t)0; i < _size; ++i)
 				_data[i] += o._data[i];
@@ -141,7 +146,9 @@ public:
 
 	vec& operator-=(const vec& o)
 	{
-		if (_size == o._size)
+		if (_data == nullptr && o._data == nullptr)
+			return *this;
+		else if (_size == o._size)
 		{
 			for (uint64_t i = (uint64_t)0; i < _size; ++i)
 				_data[i] -= o._data[i];
@@ -150,6 +157,42 @@ public:
 		}
 		else
 			throw std::exception(vec_sizes_error);
+	}
+
+	vec& operator+=(const T& sub_o)
+	{
+		if (_data != nullptr)
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] += sub_o;
+
+		return *this;
+	}
+
+	vec& operator-=(const T& sub_o)
+	{
+		if (_data != nullptr)
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] -= sub_o;
+
+		return *this;
+	}
+
+	vec& operator*=(const T& sub_o)
+	{
+		if (_data != nullptr)
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] *= sub_o;
+
+		return *this;
+	}
+
+	vec& operator/=(const T& sub_o)
+	{
+		if (_data != nullptr)
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] /= sub_o;
+
+		return *this;
 	}
 
 	const T& operator()(uint64_t index) const

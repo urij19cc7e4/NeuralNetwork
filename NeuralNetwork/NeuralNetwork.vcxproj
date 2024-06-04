@@ -204,13 +204,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="vec.cpp" />
+    <ClCompile Include="train_info.cpp" />
     <ClCompile Include="cnn.cpp" />
     <ClCompile Include="fnn.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="mtx.cpp" />
     <ClCompile Include="nnb.cpp" />
-    <ClCompile Include="rfm.cpp" />
     <ClCompile Include="rnn.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
@@ -221,7 +219,10 @@
     <ClInclude Include="nn_derivs.h" />
     <ClInclude Include="nn_inits.h" />
     <ClInclude Include="nn_params.h" />
+    <ClInclude Include="pipe.h" />
     <ClInclude Include="rand_sel.h" />
+    <ClInclude Include="tns.h" />
+    <ClInclude Include="train_info.h" />
     <ClInclude Include="vec.h" />
     <ClInclude Include="cnn.h" />
     <ClInclude Include="fnn.h" />

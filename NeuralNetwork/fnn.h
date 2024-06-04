@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <exception>
 #include <random>
+#include <utility>
 #include <omp.h>
 
 #include "rfm.h"
@@ -12,6 +14,8 @@
 #include "nn_inits.h"
 #include "light_appx.h"
 #include "rand_sel.h"
+#include "pipe.h"
+#include "train_info.h"
 
 using namespace std;
 
@@ -155,6 +159,11 @@ public:
 		return _weights.get_size_1();
 	}
 
+	uint64_t get_param_count() const noexcept
+	{
+		return _weights.get_size() + _bias_ws.get_size();
+	}
+
 	bool is_empty() const noexcept
 	{
 		return _weights.is_empty() || _bias_ws.is_empty();
@@ -184,6 +193,57 @@ private:
 	fnnl<activ, init>* _layers;
 	uint64_t _count;
 	double _param;
+
+	bool check_set(const tuple<const vec<double>*,const vec<double>*,uint64_t>&set)
+	{
+		uint64_t last_layer=_count-(uint64_t)1;
+
+		if(get<(size_t)0>(set)==nullptr
+			||get<(size_t)1>(set)==nullptr
+			||get<(size_t)2>(set)==(uint64_t)0)
+			return false;
+
+		for(uint64_t i=(uint64_t)0;i<get<(size_t)2>(set);++i)
+			if(get<(size_t)0>(set)[i].is_empty()||_layers[(uint64_t)0].get_isize()!=get<(size_t)0>(set)[i].get_size()
+				||get<(size_t)1>(set)[i].is_empty()||_layers[last_layer].get_osize()!=get<(size_t)1>(set)[i].get_size())
+				return false;
+
+		return true;
+	}
+
+	void split_set(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
+		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set)
+	{
+
+	}
+
+	void unite_set(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
+		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set)
+	{
+
+	}
+
+	bool use_cross_train_mode(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
+		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set,bool _split_set)
+	{
+		bool need_ctm=get<(size_t)2>(train_set)+get<(size_t)2>(test_set)<get_param_count()*(uint64_t)25;
+
+		if(check_set(test_set))
+			if(need_ctm)
+				return true;
+			else
+			{
+				unite_set(train_set,test_set);
+				return false;
+			}
+		else if(_split_set&&need_ctm)
+		{
+			split_set(train_set,test_set);
+			return true;
+		}
+		else
+			return false;
+	}
 
 public:
 	fnn() noexcept : _layers(nullptr), _count((uint64_t)0), _param((double)1) {}
@@ -350,37 +410,39 @@ public:
 			throw exception("Given vector size and FNN input vector size do not match");
 	}
 
-	vec<double> train_batch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
-		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.9,
-		double alpha_end = (double)0, double speed_start = (double)0.9, double speed_end = (double)0.01)
+	tuple<vec<double>, vec<double>> train_batch_mode(tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
+		tuple<const vec<double>*, const vec<double>*, uint64_t> test_set = { nullptr, nullptr, (uint64_t)0 },
+		pipe<tuple<double, double>>* error_pipe = nullptr, uint64_t max_epochs = (uint64_t)10000,
+		uint64_t test_freq = (uint64_t)100, bool _split_set = false, double convergence = (double)1,
+		double max_error = (double)0.1, double min_error = (double)1e-10,
+		double alpha_start = (double)0.9, double alpha_end = (double)0,
+		double speed_start = (double)0.9, double speed_end = (double)0.01)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
-		else if (input == nullptr || output == nullptr || batch_size == (uint64_t)0)
-			throw exception("Given empty train batch");
-		else
+		else if (check_set(train_set))
 		{
-			uint64_t copy_count = (uint64_t)(omp_get_max_threads() * (uint64_t)2 < batch_size
-				? omp_get_max_threads() * (uint64_t)2 : batch_size);
-			uint64_t cycles = batch_size / copy_count
-				+ (batch_size % copy_count == (uint64_t)0 ? (uint64_t)0 : (uint64_t)1);
+			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set);
+
+			vec<double> train_errs(max_epochs);
+			vec<double> test_errs(max_epochs);
+			test_errs((uint64_t)0) = (double)0;
+
+			double min_test_err;
+			convergence *= (double)_count;
 			uint64_t last_layer = _count - (uint64_t)1;
 
-			for (uint64_t i = (uint64_t)0; i < batch_size; ++i)
-				if (input[i].is_empty() || _layers[(uint64_t)0].get_isize() != input[i].get_size()
-					|| output[i].is_empty() || _layers[last_layer].get_osize() != output[i].get_size())
-					throw exception("Given wrong train batch");
+			uint64_t copy_count = (uint64_t)(omp_get_max_threads() * (uint64_t)2 < get<(size_t)2>(train_set)
+				? omp_get_max_threads() * (uint64_t)2 : get<(size_t)2>(train_set));
+			uint64_t cycles = get<(size_t)2>(train_set) / copy_count
+				+ (get<(size_t)2>(train_set) % copy_count == (uint64_t)0 ? (uint64_t)0 : (uint64_t)1);
 
-			vec<double> agv_errors(max_epochs);
+			light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
+			light_appx speed_appxer(speed_start, speed_end, max_epochs);
 
-			light_appx::light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
-			light_appx::light_appx speed_appxer(speed_start, speed_end, max_epochs);
-
-			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
-				? (rand_sel::rand_sel_i<uint64_t>*)
-				(new rand_sel::rand_sel<uint64_t>(batch_size - (uint64_t)1, (uint64_t)0))
-				: (rand_sel::rand_sel_i<uint64_t>*)
-				(new rand_sel::rand_sel<uint64_t, true>(batch_size - (uint64_t)1, (uint64_t)0));
+			rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
+				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
+				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
 			uint64_t* selectors = new uint64_t[copy_count];
 
 			vec<double>** arr_activs = new vec<double>*[copy_count];
@@ -408,32 +470,29 @@ public:
 				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
 				deltas_bias[i] = vec<double>(_layers[i].get_osize());
 
-				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
-				uint64_t vec_size = deltas_bias[i].get_size();
-
-				for (uint64_t j = (uint64_t)0; j < mtx_size; ++j)
+				for (uint64_t j = (uint64_t)0; j < deltas[i].get_size(); ++j)
 					deltas[i](j) = (double)0;
 
-				for (uint64_t j = (uint64_t)0; j < vec_size; ++j)
+				for (uint64_t j = (uint64_t)0; j < deltas_bias[i].get_size(); ++j)
 					deltas_bias[i](j) = (double)0;
 			}
 
 			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
 			{
-				double avg_error = (double)0;
-				double alpha_cur = alpha_appxer.forward(), speed_cur = speed_appxer.forward();
+				double train_err = (double)0, test_err = (double)0;
+				double alpha_epo = alpha_appxer.forward(), speed_epo = speed_appxer.forward();
 
+				light_appx conv_appxer(max(convergence, (double)1) * speed_epo, speed_epo, _count, (double)0, (double)2);
 				selector->reset();
 
 				for (uint64_t j = (uint64_t)0; j < cycles; ++j)
 				{
-					uint64_t copy_left = j == cycles - (uint64_t)1 ? batch_size - j * copy_count : copy_count;
-					double speed_new = speed_cur / (double)copy_left;
+					uint64_t copy_left = j == cycles - (uint64_t)1 ? get<(size_t)2>(train_set) - j * copy_count : copy_count;
 
 					for (uint64_t copy_num = (uint64_t)0; copy_num < copy_left; ++copy_num)
 						selectors[copy_num] = selector->next();
 
-					#pragma omp parallel for reduction(+:avg_error) num_threads(copy_left)
+#pragma omp parallel for reduction(+:train_err) num_threads(copy_left)
 					for (int64_t omp_thread = (int64_t)0; omp_thread < copy_left; ++omp_thread)
 					{
 						uint64_t num = selectors[omp_thread];
@@ -448,7 +507,7 @@ public:
 						{
 							uint64_t k_prev = k - (uint64_t)1;
 							tuple<vec<double>, vec<double>> train_fwd_result =
-								_layers[k].train_fwd(k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1], _param);
+								_layers[k].train_fwd(k == (uint64_t)0 ? get<(size_t)0>(train_set)[num] : activs[k - (uint64_t)1], _param);
 
 							activs[k] = move(get<(size_t)0>(train_fwd_result));
 							derivs[k] = move(get<(size_t)1>(train_fwd_result));
@@ -457,11 +516,11 @@ public:
 						__assume(last_layer < _count);
 						for (uint64_t k = (uint64_t)0; k < _layers[last_layer].get_osize(); ++k)
 						{
-							double loss = output[num](k) - activs[last_layer](k);
+							double loss = get<(size_t)1>(train_set)[num](k) - activs[last_layer](k);
 
 							grads[last_layer](k) = derivs[last_layer](k) * loss;
 							grads_bias[last_layer](k) = loss;
-							avg_error += loss * loss;
+							train_err += loss * loss;
 						}
 
 						__assume(last_layer < _count);
@@ -481,30 +540,28 @@ public:
 						}
 					}
 
+					conv_appxer.reset();
+
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
-						uint64_t mtx_size = deltas[k].get_size_1() * deltas[k].get_size_2();
-						uint64_t vec_size = deltas_bias[k].get_size();
+						double speed_lay = conv_appxer.forward() / (double)copy_left;
 
-						for (uint64_t l = (uint64_t)0; l < mtx_size; ++l)
-							deltas[k](l) *= alpha_cur;
-
-						for (uint64_t l = (uint64_t)0; l < vec_size; ++l)
-							deltas_bias[k](l) *= alpha_cur;
+						deltas[k] *= alpha_epo;
+						deltas_bias[k] *= alpha_epo;
 
 						for (uint64_t copy_num = (uint64_t)0; copy_num < copy_left; ++copy_num)
 						{
+							uint64_t num = selectors[copy_num];
 							uint64_t l = (uint64_t)0;
 
 							__assume(deltas[k].get_size_1() == deltas_bias[k].get_size());
 							for (uint64_t m = (uint64_t)0; m < deltas[k].get_size_1(); ++m)
 							{
 								for (uint64_t n = (uint64_t)0; n < deltas[k].get_size_2(); ++n, ++l)
-									deltas[k](l) += arr_grads[copy_num][k](m)
-									* (k == (uint64_t)0 ? input[selectors[copy_num]]
-										: arr_activs[copy_num][k - (uint64_t)1])(n) * speed_new;
+									deltas[k](l) += arr_grads[copy_num][k](m) * (k == (uint64_t)0
+										? get<(size_t)0>(train_set)[num] : arr_activs[copy_num][k - (uint64_t)1])(n) * speed_lay;
 
-								deltas_bias[k](m) += arr_grads_bias[copy_num][k](m) * speed_new;
+								deltas_bias[k](m) += arr_grads_bias[copy_num][k](m) * speed_lay;
 							}
 						}
 
@@ -512,21 +569,57 @@ public:
 					}
 				}
 
-				avg_error /= (double)batch_size;
-
-				if (avg_error < min_error)
+				if (cross_train_mode && i % test_freq == (uint64_t)0)
 				{
-					vec<double> new_errors(i + (uint64_t)1);
+#pragma omp parallel for reduction(+:test_err) num_threads(copy_count)
+					for (uint64_t j = (uint64_t)0; j < get<(size_t)2>(test_set); ++j)
+					{
+						vec<double> fwd_result = pass_fwd(get<(size_t)0>(test_set)[j]);
+
+						for (uint64_t k = (uint64_t)0; k < fwd_result.get_size(); ++k)
+						{
+							double loss = get<(size_t)1>(test_set)[j](k) - fwd_result(k);
+							test_err += loss * loss;
+						}
+					}
+
+					test_err /= (double)get<(size_t)2>(test_set);
+				}
+				else
+					test_err = test_errs[i - (uint64_t)1];
+
+				train_err /= (double)get<(size_t)2>(train_set);
+
+				if (error_pipe != nullptr)
+					error_pipe->push(move(tuple<double, double>{ train_err, test_err }));
+
+				if (test_err < min_test_err)
+					min_test_err = test_err;
+
+				if (test_err > min_test_err * max_error || train_err < min_error)
+				{
+					vec<double> new_train_errs(i + (uint64_t)1);
+					vec<double> new_test_errs(i + (uint64_t)1);
 
 					for (uint64_t j = (uint64_t)0; j < i; ++j)
-						new_errors(j) = agv_errors(j);
-					new_errors(i) = avg_error;
+					{
+						new_train_errs(j) = train_errs(j);
+						new_test_errs(j) = test_errs(j);
+					}
 
-					agv_errors = move(new_errors);
+					new_train_errs(i) = train_err;
+					new_test_errs(i) = test_err;
+
+					train_errs = move(new_train_errs);
+					test_errs = move(new_test_errs);
+
 					break;
 				}
 				else
-					agv_errors(i) = avg_error;
+				{
+					train_errs(i) = train_err;
+					test_errs(i) = test_err;
+				}
 			}
 
 			for (uint64_t i = (uint64_t)0; i < copy_count; ++i)
@@ -549,37 +642,44 @@ public:
 			delete[] deltas;
 			delete[] deltas_bias;
 
-			return agv_errors;
+			return tuple<vec<double>, vec<double>>
+			{
+				train_errs,
+					test_errs
+			};
 		}
+		else
+			throw exception("Wrong data set");
 	}
 
-	vec<double> train_stoch_mode(const vec<double>* input, const vec<double>* output, uint64_t batch_size,
-		uint64_t max_epochs = (uint64_t)10000, double min_error = (double)1e-10, double alpha_start = (double)0.9,
-		double alpha_end = (double)0, double speed_start = (double)0.9, double speed_end = (double)0.01)
+	tuple<vec<double>, vec<double>> train_stoch_mode(tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
+		tuple<const vec<double>*, const vec<double>*, uint64_t> test_set = { nullptr, nullptr, (uint64_t)0 },
+		pipe<tuple<double, double>>* error_pipe = nullptr, uint64_t max_epochs = (uint64_t)10000,
+		uint64_t test_freq = (uint64_t)100, double convergence = (double)1, bool _split_set = false,
+		double max_error = (double)0.1, double min_error = (double)1e-10,
+		double alpha_start = (double)0.9, double alpha_end = (double)0,
+		double speed_start = (double)0.9, double speed_end = (double)0.01)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
-		else if (input == nullptr || output == nullptr || batch_size == (uint64_t)0)
-			throw exception("Given empty train batch");
-		else
+		else if (check_set(train_set))
 		{
+			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set);
+
+			vec<double> train_errs(max_epochs);
+			vec<double> test_errs(max_epochs);
+			test_errs((uint64_t)0) = (double)0;
+
+			double min_test_err;
+			convergence *= (double)_count;
 			uint64_t last_layer = _count - (uint64_t)1;
 
-			for (uint64_t i = (uint64_t)0; i < batch_size; ++i)
-				if (input[i].is_empty() || _layers[(uint64_t)0].get_isize() != input[i].get_size()
-					|| output[i].is_empty() || _layers[last_layer].get_osize() != output[i].get_size())
-					throw exception("Given wrong train batch");
+			light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
+			light_appx speed_appxer(speed_start, speed_end, max_epochs);
 
-			vec<double> agv_errors(max_epochs);
-
-			light_appx::light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
-			light_appx::light_appx speed_appxer(speed_start, speed_end, max_epochs);
-
-			rand_sel::rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
-				? (rand_sel::rand_sel_i<uint64_t>*)
-				(new rand_sel::rand_sel<uint64_t>(batch_size - (uint64_t)1, (uint64_t)0))
-				: (rand_sel::rand_sel_i<uint64_t>*)
-				(new rand_sel::rand_sel<uint64_t, true>(batch_size - (uint64_t)1, (uint64_t)0));
+			rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
+				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
+				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
 
 			vec<double>* activs = new vec<double>[_count]();
 			vec<double>* derivs = new vec<double>[_count]();
@@ -595,27 +695,25 @@ public:
 
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
 			{
-				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
-				deltas_bias[i] = vec<double>(_layers[i].get_osize());
+				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
+				uint64_t vec_size = deltas_bias[i].get_size();
 
-				uint64_t mtx_size=deltas[i].get_size_1()*deltas[i].get_size_2();
-				uint64_t vec_size=deltas_bias[i].get_size();
-
-				for (uint64_t j = (uint64_t)0; j < mtx_size; ++j)
+				for (uint64_t j = (uint64_t)0; j < deltas[i].get_size(); ++j)
 					deltas[i](j) = (double)0;
 
-				for (uint64_t j = (uint64_t)0; j < vec_size; ++j)
+				for (uint64_t j = (uint64_t)0; j < deltas_bias[i].get_size(); ++j)
 					deltas_bias[i](j) = (double)0;
 			}
 
 			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
 			{
-				double avg_error = (double)0;
-				double alpha_cur = alpha_appxer.forward(), speed_cur = speed_appxer.forward();
+				double train_err = (double)0, test_err = (double)0;
+				double alpha_epo = alpha_appxer.forward(), speed_epo = speed_appxer.forward();
 
+				light_appx conv_appxer(max(convergence, (double)1) * speed_epo, speed_epo, _count, (double)0, (double)2);
 				selector->reset();
 
-				for (int64_t j = (int64_t)0; j < batch_size; ++j)
+				for (int64_t j = (int64_t)0; j < get<(size_t)2>(train_set); ++j)
 				{
 					uint64_t num = selector->next();
 
@@ -623,7 +721,7 @@ public:
 					{
 						uint64_t k_prev = k - (uint64_t)1;
 						tuple<vec<double>, vec<double>> train_fwd_result =
-							_layers[k].train_fwd(k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1], _param);
+							_layers[k].train_fwd(k == (uint64_t)0 ? get<(size_t)0>(train_set)[num] : activs[k - (uint64_t)1], _param);
 
 						activs[k] = move(get<(size_t)0>(train_fwd_result));
 						derivs[k] = move(get<(size_t)1>(train_fwd_result));
@@ -632,11 +730,11 @@ public:
 					__assume(last_layer < _count);
 					for (uint64_t k = (uint64_t)0; k < _layers[last_layer].get_osize(); ++k)
 					{
-						double loss = output[num](k) - activs[last_layer](k);
+						double loss = get<(size_t)1>(train_set)[num](k) - activs[last_layer](k);
 
 						grads[last_layer](k) = derivs[last_layer](k) * loss;
 						grads_bias[last_layer](k) = loss;
-						avg_error += loss * loss;
+						train_err += loss * loss;
 					}
 
 					__assume(last_layer < _count);
@@ -655,39 +753,77 @@ public:
 							grads[k_prev](l) *= derivs[k_prev](l);
 					}
 
+					conv_appxer.reset();
+
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
+						double speed_lay = conv_appxer.forward();
 						uint64_t l = (uint64_t)0;
 
 						__assume(deltas[k].get_size_1() == deltas_bias[k].get_size());
 						for (uint64_t m = (uint64_t)0; m < deltas[k].get_size_1(); ++m)
 						{
 							for (uint64_t n = (uint64_t)0; n < deltas[k].get_size_2(); ++n, ++l)
-								deltas[k](l) = deltas[k](l) * alpha_cur + grads[k](m)
-								* (k == (uint64_t)0 ? input[num] : activs[k - (uint64_t)1])(n) * speed_cur;
+								deltas[k](l) = deltas[k](l) * alpha_epo + grads[k](m) * (k == (uint64_t)0
+									? get<(size_t)0>(train_set)[num] : activs[k - (uint64_t)1])(n) * speed_lay;
 
-							deltas_bias[k](m) = deltas_bias[k](m) * alpha_cur + grads_bias[k](m) * speed_cur;
+							deltas_bias[k](m) = deltas_bias[k](m) * alpha_epo + grads_bias[k](m) * speed_lay;
 						}
 
 						_layers[k].train_upd(deltas[k], deltas_bias[k]);
 					}
 				}
 
-				avg_error /= (double)batch_size;
-
-				if (avg_error < min_error)
+				if (cross_train_mode && i % test_freq == (uint64_t)0)
 				{
-					vec<double> new_errors(i + (uint64_t)1);
+					for (uint64_t j = (uint64_t)0; j < get<(size_t)2>(test_set); ++j)
+					{
+						vec<double> fwd_result = pass_fwd(get<(size_t)0>(test_set)[j]);
+
+						for (uint64_t k = (uint64_t)0; k < fwd_result.get_size(); ++k)
+						{
+							double loss = get<(size_t)1>(test_set)[j](k) - fwd_result(k);
+							test_err += loss * loss;
+						}
+					}
+
+					test_err /= (double)get<(size_t)2>(test_set);
+				}
+				else
+					test_err = test_errs[i - (uint64_t)1];
+
+				train_err /= (double)get<(size_t)2>(train_set);
+
+				if (error_pipe != nullptr)
+					error_pipe->push(move(tuple<double, double>{ train_err, test_err }));
+
+				if (test_err < min_test_err)
+					min_test_err = test_err;
+
+				if (test_err > min_test_err * max_error || train_err < min_error)
+				{
+					vec<double> new_train_errs(i + (uint64_t)1);
+					vec<double> new_test_errs(i + (uint64_t)1);
 
 					for (uint64_t j = (uint64_t)0; j < i; ++j)
-						new_errors(j) = agv_errors(j);
-					new_errors(i) = avg_error;
+					{
+						new_train_errs(j) = train_errs(j);
+						new_test_errs(j) = test_errs(j);
+					}
 
-					agv_errors = move(new_errors);
+					new_train_errs(i) = train_err;
+					new_test_errs(i) = test_err;
+
+					train_errs = move(new_train_errs);
+					test_errs = move(new_test_errs);
+
 					break;
 				}
 				else
-					agv_errors(i) = avg_error;
+				{
+					train_errs(i) = train_err;
+					test_errs(i) = test_err;
+				}
 			}
 
 			delete selector;
@@ -701,8 +837,14 @@ public:
 			delete[] deltas;
 			delete[] deltas_bias;
 
-			return agv_errors;
+			return tuple<vec<double>, vec<double>>
+			{
+				train_errs,
+					test_errs
+			};
 		}
+		else
+			throw exception("Wrong data set");
 	}
 
 	uint64_t get_count() const noexcept
@@ -715,9 +857,19 @@ public:
 		return _param;
 	}
 
+	uint64_t get_param_count() const noexcept
+	{
+		uint64_t result=(uint64_t)0;
+
+		for (uint64_t i=(uint64_t)0;i<_count;++i)
+			result+=_layers[i].get_param_count();
+
+		return result;
+	}
+
 	bool is_empty() const noexcept
 	{
-		return _layers == nullptr || _count == (uint64_t)0;
+		return _layers==nullptr;
 	}
 
 	fnn& operator=(const fnn& o)

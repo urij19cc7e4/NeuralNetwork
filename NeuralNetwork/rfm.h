@@ -1,6 +1,7 @@
 #pragma once
 
 #include "data.h"
+#include "tns.h"
 #include "mtx.h"
 #include "vec.h"
 

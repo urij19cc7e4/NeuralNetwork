@@ -2,22 +2,6 @@
 
 #include "wx/wx.h"
 
-void run()
-{
-	wxEntryStart(0, nullptr);
-	wxTheApp->CallOnInit();
-
-	// Your custom initialization code
-	// Create your windows, set up resources, etc.
-
-	// Run the main event loop
-	wxTheApp->OnRun();
-
-	// Clean up
-	wxTheApp->OnExit();
-	wxEntryCleanup();
-}
-
 class window : public wxApp
 {
 private:

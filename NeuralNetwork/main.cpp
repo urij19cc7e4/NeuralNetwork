@@ -90,8 +90,6 @@ void f()
 	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
 }
 
-void run();
-
 int main(int argc,char*argv[])
 {
 	/*to_file<nn_params::nn_activ_t::signed_pos>("signed_pos");
@@ -116,7 +114,6 @@ int main(int argc,char*argv[])
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
 
 	f();
-	run();
 
 	getchar();
 }
