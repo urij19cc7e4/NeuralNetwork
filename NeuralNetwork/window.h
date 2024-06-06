@@ -1,78 +1,70 @@
 #pragma once
 
+#include <chrono>
+#include <cstdint>
+#include <exception>
+#include <list>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+
+#include "info.h"
+#include "pipe.h"
 #include "wx/wx.h"
+#include "mathplot.h"
 
-class window : public wxApp
+namespace window
 {
-private:
+	class GraphFrame : public wxFrame
+	{
+	private:
+		std::mutex adderMutex;
+		std::thread adderProc;
+		bool adderProcRun;
 
-public:
-	bool OnInit() override;
-};
+		uint64_t count;
+		pipe<info>* dataPipe;
 
-wxIMPLEMENT_APP_NO_MAIN(window);
+		mpScaleX* axisX;
+		mpScaleY* axisY;
 
-class MyFrame : public wxFrame
-{
-public:
-	MyFrame();
+		mpInfoLegend* infoLegend;
+		mpFXYVector* trainErr;
+		mpFXYVector* testErr;
 
-private:
-	void OnHello(wxCommandEvent& event);
-	void OnExit(wxCommandEvent& event);
-	void OnAbout(wxCommandEvent& event);
-};
+		mpWindow plotterWnd;
 
-enum
-{
-	ID_Hello = 1
-};
+		std::string modeName;
+		std::string resultName;
+		uint64_t trainSize;
+		uint64_t testSize;
 
-bool window::OnInit()
-{
-	MyFrame* frame = new MyFrame();
-	frame->Show(true);
-	return true;
-}
+		void AdderProc() noexcept;
+		void ProcInfo(const info& data);
+		void UpdateStatusBar();
 
-MyFrame::MyFrame()
-	: wxFrame(nullptr, wxID_ANY, "Hello World")
-{
-	wxMenu* menuFile = new wxMenu;
-	menuFile->Append(ID_Hello, "&Hello...\tCtrl-H",
-		"Help string shown in status bar for this menu item");
-	menuFile->AppendSeparator();
-	menuFile->Append(wxID_EXIT);
+	public:
+		GraphFrame() = delete;
+		GraphFrame(std::list<info>&& data, pipe<info>* data_pipe, std::string&& name);
+		GraphFrame(const GraphFrame& o) = delete;
+		GraphFrame(GraphFrame&& o) = delete;
+		~GraphFrame();
+	};
 
-	wxMenu* menuHelp = new wxMenu;
-	menuHelp->Append(wxID_ABOUT);
+	class GraphWnd : public wxApp
+	{
+	private:
+		std::list<info> _data = std::list<info>();
+		pipe<info>* _data_pipe = nullptr;
+		std::string _name = std::string();
 
-	wxMenuBar* menuBar = new wxMenuBar;
-	menuBar->Append(menuFile, "&File");
-	menuBar->Append(menuHelp, "&Help");
+	public:
+		void Init(const std::list<info>* data, pipe<info>* data_pipe, const std::string* name);
 
-	SetMenuBar(menuBar);
+		bool OnInit() override;
+		int OnExit() override;
+	};
 
-	CreateStatusBar();
-	SetStatusText("Welcome to wxWidgets!");
-
-	Bind(wxEVT_MENU, &MyFrame::OnHello, this, ID_Hello);
-	Bind(wxEVT_MENU, &MyFrame::OnAbout, this, wxID_ABOUT);
-	Bind(wxEVT_MENU, &MyFrame::OnExit, this, wxID_EXIT);
-}
-
-void MyFrame::OnExit(wxCommandEvent& event)
-{
-	Close(true);
-}
-
-void MyFrame::OnAbout(wxCommandEvent& event)
-{
-	wxMessageBox("This is a wxWidgets Hello World example",
-		"About Hello World", wxOK | wxICON_INFORMATION);
-}
-
-void MyFrame::OnHello(wxCommandEvent& event)
-{
-	wxLogMessage("Hello world from wxWidgets!");
+	wxDECLARE_APP(GraphWnd);
 }

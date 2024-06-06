@@ -4,18 +4,19 @@
 #include <cstdint>
 #include <exception>
 #include <random>
+#include <tuple>
 #include <utility>
 #include <omp.h>
 
-#include "rfm.h"
 #include "nn_params.h"
 #include "nn_activs.h"
 #include "nn_derivs.h"
 #include "nn_inits.h"
 #include "light_appx.h"
 #include "rand_sel.h"
+#include "info.h"
 #include "pipe.h"
-#include "train_info.h"
+#include "rfm.h"
 
 using namespace std;
 
@@ -44,10 +45,10 @@ public:
 			mt19937_64 rand_gen((random_device())());
 			initializer<activ, init> dstr(isize, osize, param);
 
-			for (uint64_t i = (uint64_t)0; i < isize * osize; ++i)
+			for (uint64_t i = (uint64_t)0; i < _weights.get_size(); ++i)
 				_weights(i) = dstr(rand_gen);
 
-			for (uint64_t i = (uint64_t)0; i < osize; ++i)
+			for (uint64_t i = (uint64_t)0; i < _bias_ws.get_size(); ++i)
 				_bias_ws(i) = (double)0;
 		}
 	}
@@ -96,11 +97,12 @@ public:
 	{
 		if (is_empty())
 			throw exception("FNN layer is not initialized");
-		else if (_weights.get_size_1() == grads.get_size() && _weights.get_size_1() == grads_bias.get_size())
-			return tuple<vec<double>, vec<double>>
+		else if (_weights.get_size_1() == grads.get_size()
+			&& _weights.get_size_1() == grads_bias.get_size())
+			return
 			{
-				move(grads* _weights),
-				move(grads_bias* _weights)
+				move(grads * _weights),
+				move(grads_bias * _weights)
 			};
 		else
 			throw exception("Given vector size and FNN layer output vector size do not match");
@@ -119,6 +121,7 @@ public:
 			};
 
 			__assume(get<(size_t)0>(result).get_size() == _weights.get_size_1());
+			__assume(get<(size_t)1>(result).get_size() == _weights.get_size_1());
 			for (uint64_t i = (uint64_t)0; i < _weights.get_size_1(); ++i)
 			{
 				double x = get<(size_t)0>(result)(i) + _bias_ws(i);
@@ -194,51 +197,105 @@ private:
 	uint64_t _count;
 	double _param;
 
-	bool check_set(const tuple<const vec<double>*,const vec<double>*,uint64_t>&set)
+	static inline void add_info(list<info>& data, pipe<info>* data_pipe, const info& _info)
 	{
-		uint64_t last_layer=_count-(uint64_t)1;
+		data.push_back(_info);
 
-		if(get<(size_t)0>(set)==nullptr
-			||get<(size_t)1>(set)==nullptr
-			||get<(size_t)2>(set)==(uint64_t)0)
+		if (data_pipe != nullptr)
+			data_pipe->push(_info);
+	}
+
+	bool check_set(const tuple<const vec<double>*, const vec<double>*, uint64_t>& set)
+	{
+		uint64_t isize = _layers[(uint64_t)0].get_isize(), osize = _layers[_count - (uint64_t)1].get_osize();
+
+		if (get<(size_t)0>(set) == nullptr || get<(size_t)1>(set) == nullptr || get<(size_t)2>(set) == (uint64_t)0)
 			return false;
 
-		for(uint64_t i=(uint64_t)0;i<get<(size_t)2>(set);++i)
-			if(get<(size_t)0>(set)[i].is_empty()||_layers[(uint64_t)0].get_isize()!=get<(size_t)0>(set)[i].get_size()
-				||get<(size_t)1>(set)[i].is_empty()||_layers[last_layer].get_osize()!=get<(size_t)1>(set)[i].get_size())
+		for (uint64_t i = (uint64_t)0; i < get<(size_t)2>(set); ++i)
+			if (get<(size_t)0>(set)[i].is_empty() || get<(size_t)0>(set)[i].get_size() != isize
+				|| get<(size_t)1>(set)[i].is_empty() || get<(size_t)1>(set)[i].get_size() != osize)
 				return false;
 
 		return true;
 	}
 
-	void split_set(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
-		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set)
+	void split_set(tuple<const vec<double>*, const vec<double>*, uint64_t>& src_set,
+		tuple<vec<double>*, vec<double>*, uint64_t>& train_set,
+		tuple<vec<double>*, vec<double>*, uint64_t>& test_set)
 	{
+		uint64_t p_count = max(get_param_count(), (uint64_t)2);
 
+		get<(size_t)2>(train_set) = (uint64_t)trunc((double)get<(size_t)2>(src_set)
+			* ((double)1 - (sqrt((double)(p_count * (uint64_t)2 - (uint64_t)1)) - (double)1)
+				/ (double)((p_count - (uint64_t)1) * (uint64_t)2)));
+		get<(size_t)2>(test_set) = get<(size_t)2>(src_set) - get<(size_t)2>(train_set);
+
+		get<(size_t)0>(train_set) = new vec<double>[get<(size_t)2>(train_set)]();
+		get<(size_t)1>(train_set) = new vec<double>[get<(size_t)2>(train_set)]();
+
+		get<(size_t)0>(test_set) = new vec<double>[get<(size_t)2>(test_set)]();
+		get<(size_t)1>(test_set) = new vec<double>[get<(size_t)2>(test_set)]();
+
+		rand_sel<uint64_t, true> selector(get<(size_t)2>(src_set) - (uint64_t)1, (uint64_t)0);
+
+		for (uint64_t i = (uint64_t)0; i < get<(size_t)2>(train_set); ++i)
+		{
+			uint64_t num = selector.next();
+
+			get<(size_t)0>(train_set)[i] = get<(size_t)0>(src_set)[num];
+			get<(size_t)1>(train_set)[i] = get<(size_t)1>(src_set)[num];
+		}
+
+		for (uint64_t i = (uint64_t)0; i < get<(size_t)2>(test_set); ++i)
+		{
+			uint64_t num = selector.next();
+
+			get<(size_t)0>(test_set)[i] = get<(size_t)0>(src_set)[num];
+			get<(size_t)1>(test_set)[i] = get<(size_t)1>(src_set)[num];
+		}
 	}
 
-	void unite_set(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
-		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set)
+	void unite_set(tuple<vec<double>*, vec<double>*, uint64_t>& dst_set,
+		tuple<const vec<double>*, const vec<double>*, uint64_t>& train_set,
+		tuple<const vec<double>*, const vec<double>*, uint64_t>& test_set)
 	{
+		get<(size_t)2>(dst_set) = get<(size_t)2>(train_set) + get<(size_t)2>(test_set);
 
+		get<(size_t)0>(dst_set) = new vec<double>[get<(size_t)2>(dst_set)]();
+		get<(size_t)1>(dst_set) = new vec<double>[get<(size_t)2>(dst_set)]();
+
+		for (uint64_t i = (uint64_t)0; i < get<(size_t)2>(train_set); ++i)
+		{
+			get<(size_t)0>(dst_set)[i] = get<(size_t)0>(train_set)[i];
+			get<(size_t)1>(dst_set)[i] = get<(size_t)1>(train_set)[i];
+		}
+
+		for (uint64_t i = (uint64_t)0, j = get<(size_t)2>(train_set); i < get<(size_t)2>(test_set); ++i, ++j)
+		{
+			get<(size_t)0>(dst_set)[j] = get<(size_t)0>(test_set)[i];
+			get<(size_t)1>(dst_set)[j] = get<(size_t)1>(test_set)[i];
+		}
 	}
 
-	bool use_cross_train_mode(tuple<const vec<double>*,const vec<double>*,uint64_t>&train_set,
-		tuple<const vec<double>*,const vec<double>*,uint64_t>&test_set,bool _split_set)
+	bool use_cross_train_mode(tuple<const vec<double>*, const vec<double>*, uint64_t>& train_set,
+		tuple<const vec<double>*, const vec<double>*, uint64_t>& test_set, bool _split_set,
+		tuple<vec<double>*, vec<double>*, uint64_t>& train_set_cross,
+		tuple<vec<double>*, vec<double>*, uint64_t>& test_set_cross)
 	{
-		bool need_ctm=get<(size_t)2>(train_set)+get<(size_t)2>(test_set)<get_param_count()*(uint64_t)25;
+		bool need_ctm = get<(size_t)2>(train_set) + get<(size_t)2>(test_set) < get_param_count() * (uint64_t)25;
 
-		if(check_set(test_set))
-			if(need_ctm)
+		if (check_set(test_set))
+			if (need_ctm)
 				return true;
 			else
 			{
-				unite_set(train_set,test_set);
+				unite_set(train_set_cross, train_set, test_set);
 				return false;
 			}
-		else if(_split_set&&need_ctm)
+		else if (_split_set && need_ctm)
 		{
-			split_set(train_set,test_set);
+			split_set(train_set, train_set_cross, test_set_cross);
 			return true;
 		}
 		else
@@ -252,7 +309,8 @@ public:
 		: _count(count), _param(param)
 	{
 		if (isize == (uint64_t)0 || osize == (uint64_t)0
-			|| (ssize == (uint64_t)0 && count > (uint64_t)1) || count == (uint64_t)0)
+			|| (ssize == (uint64_t)0 && count > (uint64_t)1)
+			|| count == (uint64_t)0)
 		{
 			_layers = nullptr;
 			_count = (uint64_t)0;
@@ -319,6 +377,7 @@ public:
 			_layers = new fnnl<activ, init>[_count]();
 
 			const uint64_t* sizes_arr = sizes.begin();
+
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
 				_layers[i] = fnnl<activ, init>(sizes_arr[i], sizes_arr[i + (uint64_t)1], _param);
 		}
@@ -410,25 +469,65 @@ public:
 			throw exception("Given vector size and FNN input vector size do not match");
 	}
 
-	tuple<vec<double>, vec<double>> train_batch_mode(tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
+	list<info> train_batch_mode
+	(
+		tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
 		tuple<const vec<double>*, const vec<double>*, uint64_t> test_set = { nullptr, nullptr, (uint64_t)0 },
-		pipe<tuple<double, double>>* error_pipe = nullptr, uint64_t max_epochs = (uint64_t)10000,
-		uint64_t test_freq = (uint64_t)100, bool _split_set = false, double convergence = (double)1,
-		double max_error = (double)0.1, double min_error = (double)1e-10,
-		double alpha_start = (double)0.9, double alpha_end = (double)0,
-		double speed_start = (double)0.9, double speed_end = (double)0.01)
+		pipe<info>* error_pipe = nullptr,
+		uint64_t max_epochs = (uint64_t)10000,
+		uint64_t max_overs = (uint64_t)75,
+		uint64_t test_freq = (uint64_t)25,
+		bool _split_set = false,
+		double convergence = (double)1,
+		double alpha_start = (double)0.90,
+		double alpha_end = (double)0.00,
+		double speed_start = (double)0.90,
+		double speed_end = (double)0.01,
+		double max_error = (double)0.10,
+		double min_error = (double)1e-9
+	)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
 		else if (check_set(train_set))
 		{
-			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set);
+			tuple<vec<double>*, vec<double>*, uint64_t> train_set_cross =
+			{
+				nullptr,
+				nullptr,
+				(uint64_t)0
+			};
 
-			vec<double> train_errs(max_epochs);
-			vec<double> test_errs(max_epochs);
-			test_errs((uint64_t)0) = (double)0;
+			tuple<vec<double>*, vec<double>*, uint64_t> test_set_cross =
+			{
+				nullptr,
+				nullptr,
+				(uint64_t)0
+			};
 
-			double min_test_err;
+			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set,
+				train_set_cross, test_set_cross);
+
+			if (train_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+				train_set = train_set_cross;
+
+			if (test_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+				test_set = test_set_cross;
+
+			list<info> result;
+
+			add_info(result, error_pipe, info(max_epochs, msg_type::count_epo));
+			add_info(result, error_pipe, info(get<(size_t)2>(train_set), msg_type::count_set_1));
+			add_info(result, error_pipe, info(get<(size_t)2>(test_set), msg_type::count_set_2));
+			add_info(result, error_pipe, info(msg_type::batch_mode));
+
+			if (cross_train_mode)
+				add_info(result, error_pipe, info(msg_type::cross_mode));
+
+			uint64_t err_overs = (uint64_t)0;
+			double min_test_err = (double)0;
+			double prev_test_err = (double)0;
+
 			convergence *= (double)_count;
 			uint64_t last_layer = _count - (uint64_t)1;
 
@@ -439,10 +538,13 @@ public:
 
 			light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
 			light_appx speed_appxer(speed_start, speed_end, max_epochs);
+			light_appx conv_appxer(max(convergence, (double)1), (double)1, max_epochs);
 
 			rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
-				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
-				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
+				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(
+					get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
+				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(
+					get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
 			uint64_t* selectors = new uint64_t[copy_count];
 
 			vec<double>** arr_activs = new vec<double>*[copy_count];
@@ -477,22 +579,25 @@ public:
 					deltas_bias[i](j) = (double)0;
 			}
 
+			bool max_epo_reached = true;
+
 			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
 			{
 				double train_err = (double)0, test_err = (double)0;
 				double alpha_epo = alpha_appxer.forward(), speed_epo = speed_appxer.forward();
 
-				light_appx conv_appxer(max(convergence, (double)1) * speed_epo, speed_epo, _count, (double)0, (double)2);
+				light_appx speed_lay_appxer(conv_appxer.forward(), speed_epo, _count, (double)0, (double)2);
 				selector->reset();
 
 				for (uint64_t j = (uint64_t)0; j < cycles; ++j)
 				{
-					uint64_t copy_left = j == cycles - (uint64_t)1 ? get<(size_t)2>(train_set) - j * copy_count : copy_count;
+					uint64_t copy_left = j == cycles - (uint64_t)1
+						? get<(size_t)2>(train_set) - j * copy_count : copy_count;
 
 					for (uint64_t copy_num = (uint64_t)0; copy_num < copy_left; ++copy_num)
 						selectors[copy_num] = selector->next();
 
-#pragma omp parallel for reduction(+:train_err) num_threads(copy_left)
+					#pragma omp parallel for reduction(+:train_err) num_threads(copy_left)
 					for (int64_t omp_thread = (int64_t)0; omp_thread < copy_left; ++omp_thread)
 					{
 						uint64_t num = selectors[omp_thread];
@@ -505,9 +610,10 @@ public:
 
 						for (uint64_t k = (uint64_t)0; k < _count; ++k)
 						{
-							uint64_t k_prev = k - (uint64_t)1;
 							tuple<vec<double>, vec<double>> train_fwd_result =
-								_layers[k].train_fwd(k == (uint64_t)0 ? get<(size_t)0>(train_set)[num] : activs[k - (uint64_t)1], _param);
+								_layers[k].train_fwd(k == (uint64_t)0
+									? get<(size_t)0>(train_set)[num]
+									: activs[k - (uint64_t)1], _param);
 
 							activs[k] = move(get<(size_t)0>(train_fwd_result));
 							derivs[k] = move(get<(size_t)1>(train_fwd_result));
@@ -540,11 +646,11 @@ public:
 						}
 					}
 
-					conv_appxer.reset();
+					speed_lay_appxer.reset();
 
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
-						double speed_lay = conv_appxer.forward() / (double)copy_left;
+						double speed_lay = speed_lay_appxer.forward() / (double)copy_left;
 
 						deltas[k] *= alpha_epo;
 						deltas_bias[k] *= alpha_epo;
@@ -559,7 +665,8 @@ public:
 							{
 								for (uint64_t n = (uint64_t)0; n < deltas[k].get_size_2(); ++n, ++l)
 									deltas[k](l) += arr_grads[copy_num][k](m) * (k == (uint64_t)0
-										? get<(size_t)0>(train_set)[num] : arr_activs[copy_num][k - (uint64_t)1])(n) * speed_lay;
+										? get<(size_t)0>(train_set)[num]
+										: arr_activs[copy_num][k - (uint64_t)1])(n) * speed_lay;
 
 								deltas_bias[k](m) += arr_grads_bias[copy_num][k](m) * speed_lay;
 							}
@@ -571,8 +678,8 @@ public:
 
 				if (cross_train_mode && i % test_freq == (uint64_t)0)
 				{
-#pragma omp parallel for reduction(+:test_err) num_threads(copy_count)
-					for (uint64_t j = (uint64_t)0; j < get<(size_t)2>(test_set); ++j)
+					#pragma omp parallel for reduction(+:test_err) num_threads(copy_count)
+					for (int64_t j = (int64_t)0; j < get<(size_t)2>(test_set); ++j)
 					{
 						vec<double> fwd_result = pass_fwd(get<(size_t)0>(test_set)[j]);
 
@@ -585,41 +692,53 @@ public:
 
 					test_err /= (double)get<(size_t)2>(test_set);
 				}
+				else if (cross_train_mode)
+					test_err = prev_test_err;
 				else
-					test_err = test_errs[i - (uint64_t)1];
+					test_err = (double)0;
+
+				prev_test_err = test_err;
 
 				train_err /= (double)get<(size_t)2>(train_set);
 
-				if (error_pipe != nullptr)
-					error_pipe->push(move(tuple<double, double>{ train_err, test_err }));
+				add_info(result, error_pipe, info(train_err, test_err));
 
-				if (test_err < min_test_err)
+				if (i == (uint64_t)0 || test_err < min_test_err)
 					min_test_err = test_err;
 
-				if (test_err > min_test_err * max_error || train_err < min_error)
+				if (test_err > min_test_err * (max_error + (double)1))
+					++err_overs;
+
+				if (test_err > min_test_err * (max_error * (double)2 + (double)1) || err_overs > max_overs)
 				{
-					vec<double> new_train_errs(i + (uint64_t)1);
-					vec<double> new_test_errs(i + (uint64_t)1);
-
-					for (uint64_t j = (uint64_t)0; j < i; ++j)
-					{
-						new_train_errs(j) = train_errs(j);
-						new_test_errs(j) = test_errs(j);
-					}
-
-					new_train_errs(i) = train_err;
-					new_test_errs(i) = test_err;
-
-					train_errs = move(new_train_errs);
-					test_errs = move(new_test_errs);
+					add_info(result, error_pipe, info(i + (uint64_t)1, msg_type::max_err_reached));
+					max_epo_reached = false;
 
 					break;
 				}
-				else
+
+				if (train_err < min_error)
 				{
-					train_errs(i) = train_err;
-					test_errs(i) = test_err;
+					add_info(result, error_pipe, info(i + (uint64_t)1, msg_type::min_err_reached));
+					max_epo_reached = false;
+
+					break;
 				}
+			}
+
+			if (max_epo_reached)
+				add_info(result, error_pipe, info(msg_type::max_epo_reached));
+
+			if (train_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+			{
+				delete[] get<(size_t)0>(train_set_cross);
+				delete[] get<(size_t)1>(train_set_cross);
+			}
+
+			if (test_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+			{
+				delete[] get<(size_t)0>(test_set_cross);
+				delete[] get<(size_t)1>(test_set_cross);
 			}
 
 			for (uint64_t i = (uint64_t)0; i < copy_count; ++i)
@@ -642,44 +761,83 @@ public:
 			delete[] deltas;
 			delete[] deltas_bias;
 
-			return tuple<vec<double>, vec<double>>
-			{
-				train_errs,
-					test_errs
-			};
+			return result;
 		}
 		else
 			throw exception("Wrong data set");
 	}
 
-	tuple<vec<double>, vec<double>> train_stoch_mode(tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
+	list<info> train_stoch_mode
+	(
+		tuple<const vec<double>*, const vec<double>*, uint64_t> train_set,
 		tuple<const vec<double>*, const vec<double>*, uint64_t> test_set = { nullptr, nullptr, (uint64_t)0 },
-		pipe<tuple<double, double>>* error_pipe = nullptr, uint64_t max_epochs = (uint64_t)10000,
-		uint64_t test_freq = (uint64_t)100, double convergence = (double)1, bool _split_set = false,
-		double max_error = (double)0.1, double min_error = (double)1e-10,
-		double alpha_start = (double)0.9, double alpha_end = (double)0,
-		double speed_start = (double)0.9, double speed_end = (double)0.01)
+		pipe<info>* error_pipe = nullptr,
+		uint64_t max_epochs = (uint64_t)10000,
+		uint64_t max_overs = (uint64_t)75,
+		uint64_t test_freq = (uint64_t)25,
+		bool _split_set = false,
+		double convergence = (double)1,
+		double alpha_start = (double)0.90,
+		double alpha_end = (double)0.00,
+		double speed_start = (double)0.90,
+		double speed_end = (double)0.01,
+		double max_error = (double)0.10,
+		double min_error = (double)1e-9
+	)
 	{
 		if (is_empty())
 			throw exception("FNN is not initialized");
 		else if (check_set(train_set))
 		{
-			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set);
+			tuple<vec<double>*, vec<double>*, uint64_t> train_set_cross =
+			{
+				nullptr,
+				nullptr,
+				(uint64_t)0
+			};
 
-			vec<double> train_errs(max_epochs);
-			vec<double> test_errs(max_epochs);
-			test_errs((uint64_t)0) = (double)0;
+			tuple<vec<double>*, vec<double>*, uint64_t> test_set_cross =
+			{
+				nullptr,
+				nullptr,
+				(uint64_t)0
+			};
 
-			double min_test_err;
+			bool cross_train_mode = use_cross_train_mode(train_set, test_set, _split_set,
+				train_set_cross, test_set_cross);
+
+			if (train_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+				train_set = train_set_cross;
+
+			if (test_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+				test_set = test_set_cross;
+
+			list<info> result;
+
+			add_info(result, error_pipe, info(max_epochs, msg_type::count_epo));
+			add_info(result, error_pipe, info(get<(size_t)2>(train_set), msg_type::count_set_1));
+			add_info(result, error_pipe, info(get<(size_t)2>(test_set), msg_type::count_set_2));
+			add_info(result, error_pipe, info(msg_type::stoch_mode));
+
+			if (cross_train_mode)
+				add_info(result, error_pipe, info(msg_type::stoch_mode));
+
+			uint64_t err_overs = (uint64_t)0;
+			double min_test_err = (double)0;
+			double prev_test_err = (double)0;
+
 			convergence *= (double)_count;
 			uint64_t last_layer = _count - (uint64_t)1;
 
 			light_appx alpha_appxer(alpha_start, alpha_end, max_epochs);
 			light_appx speed_appxer(speed_start, speed_end, max_epochs);
+			light_appx conv_appxer(max(convergence, (double)1), (double)1, max_epochs);
 
 			rand_sel_i<uint64_t>* selector = max_epochs > (uint64_t)25
-				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
-				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
+				? (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, false>(
+					get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0))
+				: (rand_sel_i<uint64_t>*)(new rand_sel<uint64_t, true>(
+					get<(size_t)2>(train_set) - (uint64_t)1, (uint64_t)0));
 
 			vec<double>* activs = new vec<double>[_count]();
 			vec<double>* derivs = new vec<double>[_count]();
@@ -695,8 +853,8 @@ public:
 
 			for (uint64_t i = (uint64_t)0; i < _count; ++i)
 			{
-				uint64_t mtx_size = deltas[i].get_size_1() * deltas[i].get_size_2();
-				uint64_t vec_size = deltas_bias[i].get_size();
+				deltas[i] = mtx<double>(_layers[i].get_osize(), _layers[i].get_isize());
+				deltas_bias[i] = vec<double>(_layers[i].get_osize());
 
 				for (uint64_t j = (uint64_t)0; j < deltas[i].get_size(); ++j)
 					deltas[i](j) = (double)0;
@@ -705,23 +863,26 @@ public:
 					deltas_bias[i](j) = (double)0;
 			}
 
+			bool max_epo_reached = true;
+
 			for (uint64_t i = (uint64_t)0; i < max_epochs; ++i)
 			{
 				double train_err = (double)0, test_err = (double)0;
 				double alpha_epo = alpha_appxer.forward(), speed_epo = speed_appxer.forward();
 
-				light_appx conv_appxer(max(convergence, (double)1) * speed_epo, speed_epo, _count, (double)0, (double)2);
+				light_appx speed_lay_appxer(conv_appxer.forward(), speed_epo, _count, (double)0, (double)2);
 				selector->reset();
 
-				for (int64_t j = (int64_t)0; j < get<(size_t)2>(train_set); ++j)
+				for (uint64_t j = (uint64_t)0; j < get<(size_t)2>(train_set); ++j)
 				{
 					uint64_t num = selector->next();
 
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
-						uint64_t k_prev = k - (uint64_t)1;
 						tuple<vec<double>, vec<double>> train_fwd_result =
-							_layers[k].train_fwd(k == (uint64_t)0 ? get<(size_t)0>(train_set)[num] : activs[k - (uint64_t)1], _param);
+							_layers[k].train_fwd(k == (uint64_t)0
+								? get<(size_t)0>(train_set)[num]
+								: activs[k - (uint64_t)1], _param);
 
 						activs[k] = move(get<(size_t)0>(train_fwd_result));
 						derivs[k] = move(get<(size_t)1>(train_fwd_result));
@@ -753,11 +914,11 @@ public:
 							grads[k_prev](l) *= derivs[k_prev](l);
 					}
 
-					conv_appxer.reset();
+					speed_lay_appxer.reset();
 
 					for (uint64_t k = (uint64_t)0; k < _count; ++k)
 					{
-						double speed_lay = conv_appxer.forward();
+						double speed_lay = speed_lay_appxer.forward();
 						uint64_t l = (uint64_t)0;
 
 						__assume(deltas[k].get_size_1() == deltas_bias[k].get_size());
@@ -789,41 +950,53 @@ public:
 
 					test_err /= (double)get<(size_t)2>(test_set);
 				}
+				else if (cross_train_mode)
+					test_err = prev_test_err;
 				else
-					test_err = test_errs[i - (uint64_t)1];
+					test_err = (double)0;
+
+				prev_test_err = test_err;
 
 				train_err /= (double)get<(size_t)2>(train_set);
 
-				if (error_pipe != nullptr)
-					error_pipe->push(move(tuple<double, double>{ train_err, test_err }));
+				add_info(result, error_pipe, info(train_err, test_err));
 
-				if (test_err < min_test_err)
+				if (i == (uint64_t)0 || test_err < min_test_err)
 					min_test_err = test_err;
 
-				if (test_err > min_test_err * max_error || train_err < min_error)
+				if (test_err > min_test_err * (max_error + (double)1))
+					++err_overs;
+
+				if (test_err > min_test_err * (max_error * (double)2 + (double)1) || err_overs > max_overs)
 				{
-					vec<double> new_train_errs(i + (uint64_t)1);
-					vec<double> new_test_errs(i + (uint64_t)1);
-
-					for (uint64_t j = (uint64_t)0; j < i; ++j)
-					{
-						new_train_errs(j) = train_errs(j);
-						new_test_errs(j) = test_errs(j);
-					}
-
-					new_train_errs(i) = train_err;
-					new_test_errs(i) = test_err;
-
-					train_errs = move(new_train_errs);
-					test_errs = move(new_test_errs);
+					add_info(result, error_pipe, info(i + (uint64_t)1, msg_type::max_err_reached));
+					max_epo_reached = false;
 
 					break;
 				}
-				else
+
+				if (train_err < min_error)
 				{
-					train_errs(i) = train_err;
-					test_errs(i) = test_err;
+					add_info(result, error_pipe, info(i + (uint64_t)1, msg_type::min_err_reached));
+					max_epo_reached = false;
+
+					break;
 				}
+			}
+
+			if (max_epo_reached)
+				add_info(result, error_pipe, info(msg_type::max_epo_reached));
+
+			if (train_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+			{
+				delete[] get<(size_t)0>(train_set_cross);
+				delete[] get<(size_t)1>(train_set_cross);
+			}
+
+			if (test_set_cross != tuple<vec<double>*, vec<double>*, uint64_t>{ nullptr, nullptr, (uint64_t)0 })
+			{
+				delete[] get<(size_t)0>(test_set_cross);
+				delete[] get<(size_t)1>(test_set_cross);
 			}
 
 			delete selector;
@@ -837,11 +1010,7 @@ public:
 			delete[] deltas;
 			delete[] deltas_bias;
 
-			return tuple<vec<double>, vec<double>>
-			{
-				train_errs,
-					test_errs
-			};
+			return result;
 		}
 		else
 			throw exception("Wrong data set");
@@ -859,17 +1028,22 @@ public:
 
 	uint64_t get_param_count() const noexcept
 	{
-		uint64_t result=(uint64_t)0;
+		if (is_empty())
+			return (uint64_t)0;
+		else
+		{
+			uint64_t result = (uint64_t)0;
 
-		for (uint64_t i=(uint64_t)0;i<_count;++i)
-			result+=_layers[i].get_param_count();
+			for (uint64_t i = (uint64_t)0; i < _count; ++i)
+				result += _layers[i].get_param_count();
 
-		return result;
+			return result;
+		}
 	}
 
 	bool is_empty() const noexcept
 	{
-		return _layers==nullptr;
+		return _layers == nullptr;
 	}
 
 	fnn& operator=(const fnn& o)

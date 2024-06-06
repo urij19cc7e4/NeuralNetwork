@@ -30,7 +30,7 @@ namespace UnitTests
 	public:
 		TEST_METHOD(FNNActivationTest)
 		{
-			Assert::AreEqual((double)1, activation<nn_activ_t::signed_pos>((double)2,(double)1));
+			Assert::AreEqual((double)1, activation<nn_activ_t::signed_pos>((double)2, (double)1));
 			Assert::AreEqual((double)1, activation<nn_activ_t::signed_pos>((double)0, (double)1));
 			Assert::AreEqual((double)-1, activation<nn_activ_t::signed_pos>((double)-2, (double)1));
 
@@ -124,8 +124,12 @@ namespace UnitTests
 			};
 
 			vec<int> vec_1(len_1);
+
 			mtx<int> mtx_1(len_1, len_2);
 			mtx<int> mtx_2(len_2, len_1);
+
+			mtx<int> mtx_3(len_1, len_2);
+			mtx<int> mtx_4(len_2, len_1);
 
 			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
 				vec_1(i) = vec_data[i];
@@ -138,6 +142,14 @@ namespace UnitTests
 				for (uint64_t j = (uint64_t)0; j < len_1; ++j)
 					mtx_2(i, j) = mtx_2_data[i][j];
 
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					mtx_3(i, j) = mtx_1_data[i][j];
+
+			for (uint64_t i = (uint64_t)0; i < len_2; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_1; ++j)
+					mtx_4(i, j) = mtx_2_data[i][j];
+
 			vec<int> vec_2 = vec_1 * mtx_1;
 			vec<int> vec_3 = mtx_2 * vec_1;
 
@@ -146,6 +158,70 @@ namespace UnitTests
 				Assert::AreEqual(res_1_data[i], vec_2(i));
 				Assert::AreEqual(res_2_data[i], vec_3(i));
 			}
+
+			vec_2 += vec_3;
+			vec_3 -= vec_2;
+
+			for (uint64_t i = (uint64_t)0; i < len_2; ++i)
+			{
+				Assert::AreEqual(res_1_data[i] + res_2_data[i], vec_2(i));
+				Assert::AreEqual(res_1_data[i] * (-1), vec_3(i));
+			}
+
+			vec_1 += 1;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				Assert::AreEqual(vec_data[i] + 1, vec_1(i));
+
+			vec_1 -= 1;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				Assert::AreEqual(vec_data[i], vec_1(i));
+
+			vec_1 *= 4;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				Assert::AreEqual(vec_data[i] * 4, vec_1(i));
+
+			vec_1 /= 2;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				Assert::AreEqual(vec_data[i] * 2, vec_1(i));
+
+			mtx_1 += mtx_3;
+			mtx_2 -= mtx_4;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					Assert::AreEqual(mtx_1_data[i][j] * 2, mtx_1(i, j));
+
+			for (uint64_t i = (uint64_t)0; i < len_2; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_1; ++j)
+					Assert::AreEqual(0, mtx_2(i, j));
+
+			mtx_1 += 1;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					Assert::AreEqual(mtx_1_data[i][j] * 2 + 1, mtx_1(i, j));
+
+			mtx_1 -= 1;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					Assert::AreEqual(mtx_1_data[i][j] * 2, mtx_1(i, j));
+
+			mtx_1 *= 2;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					Assert::AreEqual(mtx_1_data[i][j] * 4, mtx_1(i, j));
+
+			mtx_1 /= 4;
+
+			for (uint64_t i = (uint64_t)0; i < len_1; ++i)
+				for (uint64_t j = (uint64_t)0; j < len_2; ++j)
+					Assert::AreEqual(mtx_1_data[i][j], mtx_1(i, j));
 		}
 
 		TEST_METHOD(MatrixTest)

@@ -20,7 +20,7 @@ public:
 
 	~pipe() {}
 
-	bool is_empty() const noexcept
+	bool is_empty() noexcept
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
 		return _queue.empty();

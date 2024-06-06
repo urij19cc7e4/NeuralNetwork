@@ -5,6 +5,7 @@
 #include "fnn.h"
 #include "rnn.h"
 #include "nnb.h"
+#include "wx_wrapper.h"
 
 using namespace std;
 
@@ -32,65 +33,41 @@ using namespace std;
 
 void f()
 {
-	fnn<nn_params::nn_activ_t::sigmoid_rat, nn_params::nn_init_t::normal> network({ 2, 2, 1 });
+	fnn<nn_params::nn_activ_t::atan> network({ 2, 2, 1 });
 
 	vec<double> input_t[] =
 	{
-		{ 1, 1 },
-		{ 0, 0 },
-		{ 1, 0 },
 		{ 0, 0 },
 		{ 0, 1 },
 		{ 1, 0 },
-		{ 1, 1 },
-		{ 0, 1 },
-		{ 1, 1 },
-		{ 0, 0 },
-		{ 1, 1 },
-		{ 0, 0 },
-		{ 1, 0 },
-		{ 0, 0 },
-		{ 0, 1 },
-		{ 1, 0 },
-		{ 1, 1 },
-		{ 0, 1 },
-		{ 1, 1 },
-		{ 0, 0 }
+		{ 1, 1 }
 	};
 
 	vec<double> output_t[] =
 	{
-		{ 0.0 },
-		{ 0.0 },
-		{ 0.5 },
-		{ 0.0 },
+		{ -0.5 },
 		{ 0.5 },
 		{ 0.5 },
-		{ 0.0 },
-		{ 0.5 },
-		{ 0.0 },
-		{ 0.0 },
-		{ 0.0 },
-		{ 0.0 },
-		{ 0.5 },
-		{ 0.0 },
-		{ 0.5 },
-		{ 0.5 },
-		{ 0.0 },
-		{ 0.5 },
-		{ 0.0 },
-		{ 0.0 }
+		{ -0.5 }
 	};
 
-	vec<double> res = network.train_stoch_mode(input_t, output_t, 20, 10000,0,0.9,0,0.9,0.01);
+	pipe<info> p;
+
+	wx_wrapper wx;
+	wx.create_wnd(p);
+
+	list<info> result = network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, (uint64_t)0 },
+		&p, 1000, 75, 25, false, 1, 0.90, 0.00, 0.90, 0.01, 0, 1e-10);
 
 	cout << "0 xor 0 = " << network.pass_fwd({ 0, 0 })(0) << "\n";
 	cout << "0 xor 1 = " << network.pass_fwd({ 0, 1 })(0) << "\n";
 	cout << "1 xor 0 = " << network.pass_fwd({ 1, 0 })(0) << "\n";
 	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
+
+	getchar();
 }
 
-int main(int argc,char*argv[])
+int main(int argc,char*argv[],char*argp[])
 {
 	/*to_file<nn_params::nn_activ_t::signed_pos>("signed_pos");
 	to_file<nn_params::nn_activ_t::signed_neg>("signed_neg");

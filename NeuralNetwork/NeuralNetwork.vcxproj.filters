@@ -33,7 +33,10 @@
     <ClCompile Include="window.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="train_info.cpp">
+    <ClCompile Include="info.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="wx_wrapper.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,7 +92,10 @@
     <ClInclude Include="tns.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="train_info.h">
+    <ClInclude Include="info.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="wx_wrapper.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
