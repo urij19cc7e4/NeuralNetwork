@@ -28,7 +28,7 @@ namespace arithmetic
 			return result;
 		}
 		else
-			throw std::exception(mtx_vec_sizes_error);
+			throw std::exception(error_msg::mtx_vec_sizes_error);
 	}
 
 	template <typename T, bool initialize>
@@ -52,6 +52,6 @@ namespace arithmetic
 			return result;
 		}
 		else
-			throw std::exception(mtx_vec_sizes_error);
+			throw std::exception(error_msg::mtx_vec_sizes_error);
 	}
 }

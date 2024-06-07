@@ -1,13 +1,10 @@
 #pragma once
 
-#include <chrono>
 #include <cstdint>
-#include <exception>
 #include <list>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <utility>
 
 #include "info.h"
 #include "pipe.h"
@@ -28,15 +25,14 @@ namespace window
 
 		mpScaleX* axisX;
 		mpScaleY* axisY;
-
 		mpInfoLegend* infoLegend;
 		mpFXYVector* trainErr;
 		mpFXYVector* testErr;
 
 		mpWindow plotterWnd;
 
-		std::string modeName;
-		std::string resultName;
+		std::string trainMode;
+		std::string trainRes;
 		uint64_t trainSize;
 		uint64_t testSize;
 

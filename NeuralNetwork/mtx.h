@@ -2,15 +2,6 @@
 
 #include "data.h"
 
-template <typename T, bool initialize>
-class tns;
-
-template <typename T, bool initialize>
-class mtx;
-
-template <typename T, bool initialize>
-class vec;
-
 namespace arithmetic
 {
 	template <typename T, bool initialize>
@@ -21,13 +12,39 @@ namespace arithmetic
 }
 
 template <typename T, bool initialize>
-class mtx
+class mtx : public data<T, initialize>
 {
-private:
-	T* _data;
-	uint64_t _size;
+protected:
 	uint64_t _size_1;
 	uint64_t _size_2;
+
+	mtx(T* data, uint64_t size_1, uint64_t size_2) : data<T, initialize>(), _size_1(size_1), _size_2(size_2)
+	{
+		this->_data = data;
+		this->_size = _size_1 * _size_2;
+	}
+
+	virtual void assign(const data<T, initialize>& o) noexcept
+	{
+		data<T, initialize>::assign(o);
+
+		_size_1 = ((mtx&)o)._size_1;
+		_size_2 = ((mtx&)o)._size_2;
+	}
+
+	virtual bool equal(const data<T, initialize>& o) const noexcept
+	{
+		const mtx& oo = (const mtx&)o;
+		return data<T, initialize>::equal(o) && _size_1 == oo._size_1 && _size_2 == oo._size_2;
+	}
+
+	virtual void zero() noexcept
+	{
+		data<T, initialize>::zero();
+
+		_size_1 = (uint64_t)0;
+		_size_2 = (uint64_t)0;
+	}
 
 	template <typename T, bool initialize>
 	friend vec<T, initialize> arithmetic::operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
@@ -35,36 +52,24 @@ private:
 	template <typename T, bool initialize>
 	friend vec<T, initialize> arithmetic::operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
 
-public:
-	mtx() noexcept : _data(nullptr), _size((uint64_t)0), _size_1((uint64_t)0), _size_2((uint64_t)0) {}
+	friend class data<T, initialize>;
 
-	mtx(uint64_t size_1, uint64_t size_2) : _size(size_1* size_2), _size_1(size_1), _size_2(size_2)
+public:
+	mtx() noexcept : data<T, initialize>(), _size_1((uint64_t)0), _size_2((uint64_t)0) {}
+
+	mtx(uint64_t size_1, uint64_t size_2) : data<T, initialize>(size_1 * size_2), _size_1(size_1), _size_2(size_2)
 	{
-		if (_size == (uint64_t)0)
-		{
-			_data = nullptr;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-		}
-		else
-			_data = initialize ? new T[_size]() : new T[_size];
+		if (this->_size == (uint64_t)0)
+			zero();
 	}
 
 	mtx(std::initializer_list<std::initializer_list<T>> list)
-		: _size_1(list.size()), _size_2(list.begin()->size())
+		: data<T, initialize>(list.size() * list.begin()->size()), _size_1(list.size()), _size_2(list.begin()->size())
 	{
-		_size = _size_1 * _size_2;
-
-		if (_size == (uint64_t)0)
-		{
-			_data = nullptr;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-		}
+		if (this->_size == (uint64_t)0)
+			zero();
 		else
 		{
-			_data = initialize ? new T[_size]() : new T[_size];
-
 			const std::initializer_list<T>* lists = list.begin();
 			uint64_t k = (uint64_t)0;
 
@@ -74,59 +79,30 @@ public:
 					const T* elems = lists[i].begin();
 
 					for (uint64_t j = (uint64_t)0; j < _size_2; ++j, ++k)
-						_data[k] = elems[j];
+						this->_data[k] = elems[j];
 				}
 				else
 				{
-					if (_data != nullptr)
-						delete[] _data;
+					delete[] this->_data;
+					zero();
 
-					_data = nullptr;
-					_size = (uint64_t)0;
-					_size_1 = (uint64_t)0;
-					_size_2 = (uint64_t)0;
-
-					break;
+					throw std::exception("2-dims array required, jagged arrays are not supported");
 				}
 		}
 	}
 
-	mtx(const mtx& o) : _size(o._size), _size_1(o._size_1), _size_2(o._size_2)
+	mtx(const mtx& o) : data<T, initialize>(o), _size_1(o._size_1), _size_2(o._size_2)
 	{
 		if (o._data == nullptr)
-		{
-			_data = nullptr;
-			_size = (uint64_t)0;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-		}
-		else
-		{
-			_data = initialize ? new T[_size]() : new T[_size];
-
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] = o._data[i];
-		}
+			zero();
 	}
 
-	mtx(mtx&& o) noexcept : _data(o._data), _size(o._size), _size_1(o._size_1), _size_2(o._size_2)
+	mtx(mtx&& o) noexcept : data<T, initialize>(std::move(o)), _size_1(o._size_1), _size_2(o._size_2)
 	{
-		o._data = nullptr;
-		o._size = (uint64_t)0;
-		o._size_1 = (uint64_t)0;
-		o._size_2 = (uint64_t)0;
+		o.zero();
 	}
 
-	~mtx()
-	{
-		if (_data != nullptr)
-			delete[] _data;
-	}
-
-	uint64_t get_size() const noexcept
-	{
-		return _size;
-	}
+	virtual ~mtx() {}
 
 	uint64_t get_size_1() const noexcept
 	{
@@ -138,138 +114,66 @@ public:
 		return _size_2;
 	}
 
-	bool is_empty() const noexcept
-	{
-		return _data == nullptr;
-	}
-
 	mtx& operator=(const mtx& o)
 	{
-		if (_data != nullptr)
-			delete[] _data;
-
-		if (o._data == nullptr)
-		{
-			_data = nullptr;
-			_size = (uint64_t)0;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-		}
-		else
-		{
-			_data = initialize ? new T[o._size]() : new T[o._size];
-			_size = o._size;
-			_size_1 = o._size_1;
-			_size_2 = o._size_2;
-
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] = o._data[i];
-		}
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator=(o);
 	}
 
 	mtx& operator=(mtx&& o) noexcept
 	{
-		if (_data != nullptr)
-			delete[] _data;
-
-		_data = o._data;
-		_size = o._size;
-		_size_1 = o._size_1;
-		_size_2 = o._size_2;
-
-		o._data = nullptr;
-		o._size = (uint64_t)0;
-		o._size_1 = (uint64_t)0;
-		o._size_2 = (uint64_t)0;
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator=(std::move(o));
 	}
 
 	mtx& operator+=(const mtx& o)
 	{
-		if (_data == nullptr && o._data == nullptr)
-			return *this;
-		else if (_size == o._size && _size_1 == o._size_1 && _size_2 == o._size_2)
-		{
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] += o._data[i];
-
-			return *this;
-		}
-		else
-			throw std::exception(mtx_sizes_error);
+		return (mtx&)data<T, initialize>::operator+=(o);
 	}
 
 	mtx& operator-=(const mtx& o)
 	{
-		if (_data == nullptr && o._data == nullptr)
-			return *this;
-		else if (_size == o._size && _size_1 == o._size_1 && _size_2 == o._size_2)
-		{
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] -= o._data[i];
+		return (mtx&)data<T, initialize>::operator-=(o);
+	}
 
-			return *this;
-		}
-		else
-			throw std::exception(mtx_sizes_error);
+	mtx& operator*=(const mtx& o)
+	{
+		return (mtx&)data<T, initialize>::operator*=(o);
+	}
+
+	mtx& operator/=(const mtx& o)
+	{
+		return (mtx&)data<T, initialize>::operator/=(o);
 	}
 
 	mtx& operator+=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] += sub_o;
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator+=(sub_o);
 	}
 
 	mtx& operator-=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] -= sub_o;
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator-=(sub_o);
 	}
 
 	mtx& operator*=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] *= sub_o;
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator*=(sub_o);
 	}
 
 	mtx& operator/=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] /= sub_o;
-
-		return *this;
+		return (mtx&)data<T, initialize>::operator/=(sub_o);
 	}
 
 	const T& operator()(uint64_t index_1, uint64_t index_2) const
 	{
-		return _data[_size_2 * index_1 + index_2];
+		return this->_data[_size_2 * index_1 + index_2];
 	}
 
 	T& operator()(uint64_t index_1, uint64_t index_2)
 	{
-		return _data[_size_2 * index_1 + index_2];
+		return this->_data[_size_2 * index_1 + index_2];
 	}
 
-	const T& operator()(uint64_t index) const
-	{
-		return _data[index];
-	}
-
-	T& operator()(uint64_t index)
-	{
-		return _data[index];
-	}
+	using data<T, initialize>::operator();
+	using data<T, initialize>::operator[];
 };

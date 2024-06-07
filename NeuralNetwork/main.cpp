@@ -31,15 +31,15 @@ using namespace std;
 //	deriv_file.close();
 //}
 
-void f()
+void f(wx_wrapper&wx)
 {
-	fnn<nn_params::nn_activ_t::atan> network({ 2, 2, 1 });
+	fnn<nn_params::nn_activ_t::sigmoid_rat> network({ 2, 3, 1 });
 
 	vec<double> input_t[] =
 	{
-		{ 0, 0 },
-		{ 0, 1 },
-		{ 1, 0 },
+		{ -1, -1 },
+		{ -1, 1 },
+		{ 1, -1 },
 		{ 1, 1 }
 	};
 
@@ -51,20 +51,38 @@ void f()
 		{ -0.5 }
 	};
 
-	pipe<info> p;
+	vec<double> input_test[] =
+	{
+		{ -2, 0 },
+		{ 5, 1 },
+		{ -1, 0 },
+		{ -2, -2 }
+	};
 
-	wx_wrapper wx;
-	wx.create_wnd(p);
+	vec<double> output_test[] =
+	{
+		{ 0.5 },
+		{ 0.5 },
+		{ 0.5 },
+		{ -0.5 }
+	};
 
-	list<info> result = network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, (uint64_t)0 },
-		&p, 1000, 75, 25, false, 1, 0.90, 0.00, 0.90, 0.01, 0, 1e-10);
+	pipe<info>* p = new pipe<info>();
 
-	cout << "0 xor 0 = " << network.pass_fwd({ 0, 0 })(0) << "\n";
-	cout << "0 xor 1 = " << network.pass_fwd({ 0, 1 })(0) << "\n";
-	cout << "1 xor 0 = " << network.pass_fwd({ 1, 0 })(0) << "\n";
+	wx.create_wnd(*p);
+
+	list<info> result = network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, 0 },
+		p, 1000, 75, 25, false, 1, 0.90, 0.10, 0.90, 0.25, 1000, 1e-10);
+
+	cout << "0 xor 0 = " << network.pass_fwd({ -1, -1 })(0) << "\n";
+	cout << "0 xor 1 = " << network.pass_fwd({ -1, 1 })(0) << "\n";
+	cout << "1 xor 0 = " << network.pass_fwd({ 1, -1 })(0) << "\n";
 	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
-
-	getchar();
+	cout << "\n";
+	cout << "-2 xor 0 = " << network.pass_fwd({ -2, 0 })(0) << "\n";
+	cout << "5 xor 1 = " << network.pass_fwd({ 5, 1 })(0) << "\n";
+	cout << "-1 xor 0 = " << network.pass_fwd({ -1, 0 })(0) << "\n";
+	cout << "-2 xor -2 = " << network.pass_fwd({ -2, -2 })(0) << "\n";
 }
 
 int main(int argc,char*argv[],char*argp[])
@@ -89,8 +107,9 @@ int main(int argc,char*argv[],char*argp[])
 	to_file<nn_params::nn_activ_t::mish>("mish");
 	to_file<nn_params::nn_activ_t::swish>("swish");
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
-
-	f();
+	wx_wrapper wx;
+	for(int i=0;i<2;++i)
+	f(wx);
 
 	getchar();
 }

@@ -9,6 +9,12 @@
 #include "info.h"
 #include "pipe.h"
 
+namespace window
+{
+	class GraphFrame;
+	class GraphWnd;
+}
+
 class wx_wrapper
 {
 private:
@@ -24,7 +30,7 @@ private:
 	static inline std::mutex _mutex = std::mutex();
 	static inline std::list<wnd_info> _procs = std::list<wnd_info>();
 
-	static void wnd_proc(void* graph_wnd) noexcept;
+	static void wnd_proc(window::GraphWnd* graph_wnd) noexcept;
 
 public:
 	wx_wrapper();

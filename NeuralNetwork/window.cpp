@@ -1,6 +1,10 @@
 #include "window.h"
 #include "mathplot.cpp"
 
+#include <chrono>
+#include <exception>
+#include <utility>
+
 using namespace std;
 using namespace window;
 
@@ -64,6 +68,7 @@ void window::GraphFrame::ProcInfo(const info& data)
 
 		trainErr->ReplaceDataByX((double)count, data.get_data_1());
 		testErr->ReplaceDataByX((double)count, data.get_data_2());
+
 		++count;
 
 		break;
@@ -95,40 +100,40 @@ void window::GraphFrame::ProcInfo(const info& data)
 
 	case msg_type::batch_mode:
 
-		modeName += "Batch Parallel";
+		trainMode = "Batch Parallel";
 
 		break;
 
 	case msg_type::stoch_mode:
 
-		modeName += "Stochatic Seq";
+		trainMode = "Stochatic Seq";
 
 		break;
 
 	case msg_type::cross_mode:
 
-		modeName += " with Cross Testing";
+		trainMode += " with Cross Testing";
 
 		break;
 
 	case msg_type::max_epo_reached:
 
 		adderProcRun = false;
-		resultName = "Maximum Epoch Count reached";
+		trainRes = "Maximum Epoch Count reached";
 
 		break;
 
 	case msg_type::max_err_reached:
 
 		adderProcRun = false;
-		resultName = "Maximum Test Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
+		trainRes = "Maximum Test Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
 
 		break;
 
 	case msg_type::min_err_reached:
 
 		adderProcRun = false;
-		resultName = "Minimum Train Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
+		trainRes = "Minimum Train Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
 
 		break;
 
@@ -145,10 +150,10 @@ void window::GraphFrame::UpdateStatusBar()
 		{
 			lock_guard<mutex> lock(this->adderMutex);
 
-			this->SetStatusText(_((string("Train Mode: ") + this->modeName).c_str()), 0);
+			this->SetStatusText(_((string("Train Mode: ") + this->trainMode).c_str()), 0);
 			this->SetStatusText(_((string("Train Set: ") + to_string(this->trainSize)).c_str()), 1);
 			this->SetStatusText(_((string("Test Set: ") + to_string(this->testSize)).c_str()), 2);
-			this->SetStatusText(_(this->resultName.c_str()), 3);
+			this->SetStatusText(_(this->trainRes.c_str()), 3);
 		});
 }
 
@@ -167,8 +172,8 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 	trainErr(new mpFXYVector(_("Train Set Error"))),
 	testErr(new mpFXYVector(_("Test Set Error"))),
 	plotterWnd(this, wxID_ANY, wxPoint(0, 0), wxSize(800, 400), wxSUNKEN_BORDER),
-	modeName(),
-	resultName("Processing..."),
+	trainMode(),
+	trainRes("Processing..."),
 	trainSize((uint64_t)0),
 	testSize((uint64_t)0)
 {
@@ -184,9 +189,9 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 	infoLegend->SetItemMode(mpLEGEND_SQUARE);
 
 	trainErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)255, (wxColourBase::ChannelType)0,
-		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_DOT_DASH));
+		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
 	testErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255,
-		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_DOT_DASH));
+		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
 
 	trainErr->SetContinuity(true);
 	testErr->SetContinuity(true);

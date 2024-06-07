@@ -3,58 +3,64 @@
 #include "data.h"
 
 template <typename T, bool initialize>
-class tns;
-
-template <typename T, bool initialize>
-class mtx;
-
-template <typename T, bool initialize>
-class vec;
-
-template <typename T, bool initialize>
-class tns
+class tns : public data<T, initialize>
 {
-private:
-	T* _data;
-	uint64_t _size;
+protected:
 	uint64_t _size_1;
 	uint64_t _size_2;
 	uint64_t _size_3;
 
+	tns(T* data, uint64_t size_1, uint64_t size_2, uint64_t size_3)
+		: data<T, initialize>(), _size_1(size_1), _size_2(size_2), _size_3(size_3)
+	{
+		this->_data = data;
+		this->_size = _size_1 * _size_2 * _size_3;
+	}
+
+	virtual void assign(const data<T, initialize>& o) noexcept
+	{
+		data<T, initialize>::assign(o);
+
+		_size_1 = ((tns&)o)._size_1;
+		_size_2 = ((tns&)o)._size_2;
+		_size_3 = ((tns&)o)._size_3;
+	}
+
+	virtual bool equal(const data<T, initialize>& o) const noexcept
+	{
+		const mtx& oo = (const mtx&)o;
+		return data<T, initialize>::equal(o) && _size_1 == oo._size_1 && _size_2 == oo._size_2 && _size_3 == oo._size_3;
+	}
+
+	virtual void zero() noexcept
+	{
+		data<T, initialize>::zero();
+
+		_size_1 = (uint64_t)0;
+		_size_2 = (uint64_t)0;
+		_size_3 = (uint64_t)0;
+	}
+
+	friend class data<T, initialize>;
+
 public:
-	tns() noexcept
-		: _data(nullptr), _size((uint64_t)0), _size_1((uint64_t)0), _size_2((uint64_t)0), _size_3((uint64_t)0) {}
+	tns() noexcept : data<T, initialize>(), _size_1((uint64_t)0), _size_2((uint64_t)0), _size_3((uint64_t)0) {}
 
 	tns(uint64_t size_1, uint64_t size_2, uint64_t size_3)
-		: _size(size_1* size_2* size_3), _size_1(size_1), _size_2(size_2), _size_3(size_3)
+		: data<T, initialize>(size_1 * size_2 * size_3), _size_1(size_1), _size_2(size_2), _size_3(size_3)
 	{
-		if (_size == (uint64_t)0)
-		{
-			_data = nullptr;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-			_size_3 = (uint64_t)0;
-		}
-		else
-			_data = initialize ? new T[_size]() : new T[_size];
+		if (this->_size == (uint64_t)0)
+			zero();
 	}
 
 	tns(std::initializer_list<std::initializer_list<std::initializer_list<T>>> list)
-		: _size_1(list.size()), _size_2(list.begin()->size()), _size_3(list.begin()->begin()->size())
+		: data<T, initialize>(list.size() * list.begin()->size() * list.begin()->begin()->size()),
+		_size_1(list.size()), _size_2(list.begin()->size()), _size_3(list.begin()->begin()->size())
 	{
-		_size = _size_1 * _size_2 * _size_3;
-
-		if (_size == (uint64_t)0)
-		{
-			_data = nullptr;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-			_size_3 = (uint64_t)0;
-		}
+		if (this->_size == (uint64_t)0)
+			zero();
 		else
 		{
-			_data = initialize ? new T[_size]() : new T[_size];
-
 			const std::initializer_list<std::initializer_list<T>>* lists_1 = list.begin();
 			uint64_t l = (uint64_t)0;
 
@@ -69,76 +75,38 @@ public:
 							const T* elems = lists_2[j].begin();
 
 							for (uint64_t k = (uint64_t)0; k < _size_3; ++k, ++l)
-								_data[l] = elems[k];
+								this->_data[l] = elems[k];
 						}
 						else
 						{
-							if (_data != nullptr)
-								delete[] _data;
+							delete[] this->_data;
+							zero();
 
-							_data = nullptr;
-							_size = (uint64_t)0;
-							_size_1 = (uint64_t)0;
-							_size_2 = (uint64_t)0;
-							_size_3 = (uint64_t)0;
-
-							return;
+							throw std::exception("3-dims array required, jagged arrays are not supported");
 						}
 				}
 				else
 				{
-					if (_data != nullptr)
-						delete[] _data;
+					delete[] this->_data;
+					zero();
 
-					_data = nullptr;
-					_size = (uint64_t)0;
-					_size_1 = (uint64_t)0;
-					_size_2 = (uint64_t)0;
-					_size_3 = (uint64_t)0;
-
-					return;
+					throw std::exception("3-dims array required, jagged arrays are not supported");
 				}
 		}
 	}
 
-	tns(const tns& o) : _size(o._size), _size_1(o._size_1), _size_2(o._size_2), _size_3(o._size_3)
+	tns(const tns& o) : data<T, initialize>(o), _size_1(o._size_1), _size_2(o._size_2), _size_3(o._size_3)
 	{
 		if (o._data == nullptr)
-		{
-			_data = nullptr;
-			_size = (uint64_t)0;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-			_size_3 = (uint64_t)0;
-		}
-		else
-		{
-			_data = initialize ? new T[_size]() : new T[_size];
-
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] = o._data[i];
-		}
+			zero();
 	}
 
-	tns(tns&& o) noexcept : _data(o._data), _size(o._size), _size_1(o._size_1), _size_2(o._size_2), _size_3(o._size_3)
+	tns(tns&& o) noexcept : data<T, initialize>(std::move(o)), _size_1(o._size_1), _size_2(o._size_2), _size_3(o._size_3)
 	{
-		o._data = nullptr;
-		o._size = (uint64_t)0;
-		o._size_1 = (uint64_t)0;
-		o._size_2 = (uint64_t)0;
-		o._size_3 = (uint64_t)0;
+		o.zero();
 	}
 
-	~tns()
-	{
-		if (_data != nullptr)
-			delete[] _data;
-	}
-
-	uint64_t get_size() const noexcept
-	{
-		return _size;
-	}
+	virtual ~tns() {}
 
 	uint64_t get_size_1() const noexcept
 	{
@@ -155,142 +123,66 @@ public:
 		return _size_3;
 	}
 
-	bool is_empty() const noexcept
-	{
-		return _data == nullptr;
-	}
-
 	tns& operator=(const tns& o)
 	{
-		if (_data != nullptr)
-			delete[] _data;
-
-		if (o._data == nullptr)
-		{
-			_data = nullptr;
-			_size = (uint64_t)0;
-			_size_1 = (uint64_t)0;
-			_size_2 = (uint64_t)0;
-			_size_3 = (uint64_t)0;
-		}
-		else
-		{
-			_data = initialize ? new T[o._size]() : new T[o._size];
-			_size = o._size;
-			_size_1 = o._size_1;
-			_size_2 = o._size_2;
-			_size_3 = o._size_3;
-
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] = o._data[i];
-		}
-
-		return *this;
+		return (tns&)data<T, initialize>::operator=(o);
 	}
 
 	tns& operator=(tns&& o) noexcept
 	{
-		if (_data != nullptr)
-			delete[] _data;
-
-		_data = o._data;
-		_size = o._size;
-		_size_1 = o._size_1;
-		_size_2 = o._size_2;
-		_size_3 = o._size_3;
-
-		o._data = nullptr;
-		o._size = (uint64_t)0;
-		o._size_1 = (uint64_t)0;
-		o._size_2 = (uint64_t)0;
-		o._size_3 = (uint64_t)0;
-
-		return *this;
+		return (tns&)data<T, initialize>::operator=(std::move(o));
 	}
 
 	tns& operator+=(const tns& o)
 	{
-		if (_data == nullptr && o._data == nullptr)
-			return *this;
-		else if (_size == o._size && _size_1 == o._size_1 && _size_2 == o._size_2 && _size_3 == o._size_3)
-		{
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] += o._data[i];
-
-			return *this;
-		}
-		else
-			throw std::exception(tns_sizes_error);
+		return (tns&)data<T, initialize>::operator+=(o);
 	}
 
 	tns& operator-=(const tns& o)
 	{
-		if (_data == nullptr && o._data == nullptr)
-			return *this;
-		else if (_size == o._size && _size_1 == o._size_1 && _size_2 == o._size_2 && _size_3 == o._size_3)
-		{
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] -= o._data[i];
+		return (tns&)data<T, initialize>::operator-=(o);
+	}
 
-			return *this;
-		}
-		else
-			throw std::exception(tns_sizes_error);
+	tns& operator*=(const tns& o)
+	{
+		return (tns&)data<T, initialize>::operator*=(o);
+	}
+
+	tns& operator/=(const tns& o)
+	{
+		return (tns&)data<T, initialize>::operator/=(o);
 	}
 
 	tns& operator+=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] += sub_o;
-
-		return *this;
+		return (tns&)data<T, initialize>::operator+=(sub_o);
 	}
 
 	tns& operator-=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] -= sub_o;
-
-		return *this;
+		return (tns&)data<T, initialize>::operator-=(sub_o);
 	}
 
 	tns& operator*=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] *= sub_o;
-
-		return *this;
+		return (tns&)data<T, initialize>::operator*=(sub_o);
 	}
 
 	tns& operator/=(const T& sub_o)
 	{
-		if (_data != nullptr)
-			for (uint64_t i = (uint64_t)0; i < _size; ++i)
-				_data[i] /= sub_o;
-
-		return *this;
+		return (tns&)data<T, initialize>::operator/=(sub_o);
 	}
 
 	const T& operator()(uint64_t index_1, uint64_t index_2, uint64_t index_3) const
 	{
-		return _data[_size_3 * (_size_2 * index_1 + index_2) + index_3];
+		return this->_data[_size_3 * (_size_2 * index_1 + index_2) + index_3];
 	}
 
 	T& operator()(uint64_t index_1, uint64_t index_2, uint64_t index_3)
 	{
-		return _data[_size_3 * (_size_2 * index_1 + index_2) + index_3];
+		return this->_data[_size_3 * (_size_2 * index_1 + index_2) + index_3];
 	}
 
-	const T& operator()(uint64_t index) const
-	{
-		return _data[index];
-	}
-
-	T& operator()(uint64_t index)
-	{
-		return _data[index];
-	}
+	using data<T, initialize>::operator();
+	using data<T, initialize>::operator[];
 };

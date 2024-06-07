@@ -7,17 +7,17 @@
 using namespace std;
 using namespace window;
 
-void wx_wrapper::wnd_proc(void* graph_wnd) noexcept
+void wx_wrapper::wnd_proc(GraphWnd* graph_wnd) noexcept
 {
 	try
 	{
 		if (graph_wnd != nullptr)
 		{
-			((GraphWnd*)graph_wnd)->OnInit();
-			((GraphWnd*)graph_wnd)->OnRun();
-			((GraphWnd*)graph_wnd)->OnExit();
+			graph_wnd->OnInit();
+			graph_wnd->OnRun();
+			graph_wnd->OnExit();
 
-			delete (GraphWnd*)graph_wnd;
+			delete graph_wnd;
 		}
 	}
 	catch (...) {}
