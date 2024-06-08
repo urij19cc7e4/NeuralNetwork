@@ -20,15 +20,10 @@ class wx_wrapper
 private:
 	static constexpr char _wnd_name[] = "Neural Network Train Graph";
 
-	struct wnd_info
-	{
-		std::thread thread;
-		void* wx_wnd;
-	};
-
 	static inline uint64_t _count = (uint64_t)0;
 	static inline std::mutex _mutex = std::mutex();
-	static inline std::list<wnd_info> _procs = std::list<wnd_info>();
+	static inline std::thread _thread = std::thread();
+	static inline window::GraphWnd* _window = nullptr;
 
 	static void wnd_proc(window::GraphWnd* graph_wnd) noexcept;
 

@@ -16,19 +16,16 @@ namespace window
 	class GraphFrame : public wxFrame
 	{
 	private:
-		std::mutex adderMutex;
-		std::thread adderProc;
-		bool adderProcRun;
-
 		uint64_t count;
 		pipe<info>* dataPipe;
+		std::mutex adderMutex;
+		std::thread adderProc;
 
 		mpScaleX* axisX;
 		mpScaleY* axisY;
 		mpInfoLegend* infoLegend;
 		mpFXYVector* trainErr;
 		mpFXYVector* testErr;
-
 		mpWindow plotterWnd;
 
 		std::string trainMode;
@@ -51,12 +48,9 @@ namespace window
 	class GraphWnd : public wxApp
 	{
 	private:
-		std::list<info> _data = std::list<info>();
-		pipe<info>* _data_pipe = nullptr;
-		std::string _name = std::string();
 
 	public:
-		void Init(const std::list<info>* data, pipe<info>* data_pipe, const std::string* name);
+		void NewFrame(std::list<info> data, pipe<info>* data_pipe, std::string name);
 
 		bool OnInit() override;
 		int OnExit() override;

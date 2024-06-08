@@ -8,23 +8,14 @@
 using namespace std;
 using namespace window;
 
-void window::GraphWnd::Init(const list<info>* data, pipe<info>* data_pipe, const string* name)
+void window::GraphWnd::NewFrame(list<info> data, pipe<info>* data_pipe, string name)
 {
-	if (data != nullptr)
-		_data = *data;
-
-	if (data_pipe != nullptr)
-		_data_pipe = data_pipe;
-
-	if (name != nullptr)
-		_name = *name;
+	GraphFrame* wnd_frame = new GraphFrame(move(data), data_pipe, move(name));
+	wnd_frame->Show();
 }
 
 bool window::GraphWnd::OnInit()
 {
-	GraphFrame* wnd_frame = new GraphFrame(move(_data), _data_pipe, move(_name));
-	wnd_frame->Show();
-
 	return true;
 }
 
@@ -37,11 +28,11 @@ void window::GraphFrame::AdderProc() noexcept
 {
 	try
 	{
-		while (adderProcRun)
+		while (dataPipe != nullptr)
 		{
 			if (!dataPipe->is_empty())
 			{
-				while (!dataPipe->is_empty())
+				while (dataPipe != nullptr && !dataPipe->is_empty())
 				{
 					info data;
 					dataPipe->pop(data);
@@ -71,6 +62,12 @@ void window::GraphFrame::ProcInfo(const info& data)
 
 		++count;
 
+		if (count == (uint64_t)4096)
+		{
+			trainErr->SetLightMode(true);
+			testErr->SetLightMode(true);
+		}
+
 		break;
 
 	case msg_type::count_epo:
@@ -82,6 +79,12 @@ void window::GraphFrame::ProcInfo(const info& data)
 		{
 			trainErr->AddData((double)i, (double)0);
 			testErr->AddData((double)i, (double)0);
+		}
+
+		if (count + data.get_data_3() >= (uint64_t)4096)
+		{
+			trainErr->SetLightMode(true);
+			testErr->SetLightMode(true);
 		}
 
 		break;
@@ -118,21 +121,21 @@ void window::GraphFrame::ProcInfo(const info& data)
 
 	case msg_type::max_epo_reached:
 
-		adderProcRun = false;
+		dataPipe = nullptr;
 		trainRes = "Maximum Epoch Count reached";
 
 		break;
 
 	case msg_type::max_err_reached:
 
-		adderProcRun = false;
+		dataPipe = nullptr;
 		trainRes = "Maximum Test Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
 
 		break;
 
 	case msg_type::min_err_reached:
 
-		adderProcRun = false;
+		dataPipe = nullptr;
 		trainRes = "Minimum Train Error reached for " + to_string(data.get_data_3()) + " epoch(s)";
 
 		break;
@@ -161,11 +164,10 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 	: wxFrame(nullptr, wxID_ANY, _(name.c_str()), wxDefaultPosition, wxSize(800, 400),
 		wxCAPTION | wxCLIP_CHILDREN | wxCLOSE_BOX | wxSYSTEM_MENU | wxMINIMIZE_BOX
 		| wxMAXIMIZE_BOX | wxRESIZE_BORDER, _(name.c_str())),
-	adderMutex(),
-	adderProc(),
-	adderProcRun(true),
 	count((uint64_t)0),
 	dataPipe(data_pipe),
+	adderMutex(),
+	adderProc(),
 	axisX(new mpScaleX(_("Epoch"))),
 	axisY(new mpScaleY(_("Error"))),
 	infoLegend(new mpInfoLegend(wxRect(640, 10, 125, 40))),
@@ -181,24 +183,21 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 
 	axisX->SetFont(font);
 	axisY->SetFont(font);
-
 	axisX->SetDrawOutsideMargins(false);
 	axisY->SetDrawOutsideMargins(false);
 
 	infoLegend->SetFont(font);
 	infoLegend->SetItemMode(mpLEGEND_SQUARE);
 
-	trainErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)255, (wxColourBase::ChannelType)0,
-		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
-	testErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255,
-		(wxColourBase::ChannelType)0, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
+	trainErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)0x00, (wxColourBase::ChannelType)0x4D,
+		(wxColourBase::ChannelType)0xFF, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
+	testErr->SetPen(wxPen(wxColour((wxColourBase::ChannelType)0xFF, (wxColourBase::ChannelType)0x53,
+		(wxColourBase::ChannelType)0x00, (wxColourBase::ChannelType)255), 3, wxPenStyle::wxPENSTYLE_STIPPLE_MASK_OPAQUE));
 
 	trainErr->SetContinuity(true);
 	testErr->SetContinuity(true);
-
 	trainErr->SetDrawOutsideMargins(false);
 	testErr->SetDrawOutsideMargins(false);
-
 	trainErr->ShowName(false);
 	testErr->ShowName(false);
 
@@ -220,7 +219,8 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 
 	plotterWnd.Fit();
 
-	adderProc = thread([this] { this->AdderProc(); });
+	if (dataPipe != nullptr)
+		adderProc = thread([this] { this->AdderProc(); });
 
 	CreateStatusBar(4);
 	UpdateStatusBar();
@@ -228,7 +228,7 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 
 window::GraphFrame::~GraphFrame()
 {
-	adderProcRun = false;
+	dataPipe = nullptr;
 
 	if (adderProc.joinable())
 		adderProc.join();

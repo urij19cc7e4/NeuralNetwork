@@ -68,8 +68,11 @@ void f(wx_wrapper&wx)
 	};
 
 	pipe<info>* p = new pipe<info>();
+	pipe<info>* pp = new pipe<info>();
 
-	wx.create_wnd(*p);
+	wx.create_wnd(*pp);
+	for (double x = 0.0,z=0.0; x <= 10.0; x += 0.001,z+=0.001)
+		pp->push(info(sin(x), cos(z)));
 
 	list<info> result = network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, 0 },
 		p, 1000, 75, 25, false, 1, 0.90, 0.10, 0.90, 0.25, 1000, 1e-10);
@@ -108,7 +111,7 @@ int main(int argc,char*argv[],char*argp[])
 	to_file<nn_params::nn_activ_t::swish>("swish");
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
 	wx_wrapper wx;
-	for(int i=0;i<2;++i)
+	for(int i=0;i<1;++i)
 	f(wx);
 
 	getchar();
