@@ -45,16 +45,23 @@ namespace window
 		~GraphFrame();
 	};
 
-	class GraphWnd : public wxApp
+	class NNIOFrame : public wxFrame
 	{
 	private:
-
 	public:
-		void NewFrame(std::list<info> data, pipe<info>* data_pipe, std::string name);
+		//NNIOFrame()=delete;
+		NNIOFrame();
+		NNIOFrame(const NNIOFrame& o) = delete;
+		NNIOFrame(NNIOFrame&& o) = delete;
+		~NNIOFrame();
+	};
 
+	class wxWndProc : public wxApp
+	{
+	public:
 		bool OnInit() override;
 		int OnExit() override;
 	};
 
-	wxDECLARE_APP(GraphWnd);
+	wxDECLARE_APP(wxWndProc);
 }

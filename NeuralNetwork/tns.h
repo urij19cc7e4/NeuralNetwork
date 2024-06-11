@@ -2,6 +2,27 @@
 
 #include "data.h"
 
+namespace arithmetic
+{
+	template <typename T, bool initialize>
+	tns<T, initialize> convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	tns<T, initialize> convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	mtx<T, initialize> convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	mtx<T, initialize> convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	tns<T, initialize> rotate(const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	void rotate(tns<T, initialize>& _core);
+}
+
 template <typename T, bool initialize>
 class tns : public data<T, initialize>
 {
@@ -28,7 +49,7 @@ protected:
 
 	virtual bool equal(const data<T, initialize>& o) const noexcept
 	{
-		const mtx& oo = (const mtx&)o;
+		const tns& oo = (const tns&)o;
 		return data<T, initialize>::equal(o) && _size_1 == oo._size_1 && _size_2 == oo._size_2 && _size_3 == oo._size_3;
 	}
 
@@ -40,6 +61,24 @@ protected:
 		_size_2 = (uint64_t)0;
 		_size_3 = (uint64_t)0;
 	}
+
+	template <typename T, bool initialize>
+	friend tns<T, initialize> arithmetic::convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend tns<T, initialize> arithmetic::convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend tns<T, initialize> arithmetic::rotate(const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend void arithmetic::rotate(tns<T, initialize>& _core);
 
 	friend class data<T, initialize>;
 

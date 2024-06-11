@@ -99,6 +99,7 @@
       <CallingConvention>FastCall</CallingConvention>
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -136,6 +137,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DebugInformationFormat>None</DebugInformationFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -171,6 +173,7 @@
       <CallingConvention>FastCall</CallingConvention>
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -208,6 +211,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)include\msvc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <DebugInformationFormat>None</DebugInformationFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -231,6 +235,7 @@
     <ClCompile Include="fnn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nnb.cpp" />
+    <ClCompile Include="nn_params.cpp" />
     <ClCompile Include="rnn.cpp" />
     <ClCompile Include="window.cpp" />
     <ClCompile Include="wx_wrapper.cpp" />

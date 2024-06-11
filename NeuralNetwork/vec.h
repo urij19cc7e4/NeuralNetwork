@@ -60,6 +60,7 @@ public:
 		else
 		{
 			const T* elems = list.begin();
+
 			for (uint64_t i = (uint64_t)0; i < this->_size; ++i)
 				this->_data[i] = elems[i];
 		}

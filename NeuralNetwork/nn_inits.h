@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cmath>
-#include <random>
-
 #include "nn_params.h"
 
 namespace nn_inits
@@ -489,67 +487,4 @@ namespace nn_inits
 			(double)-1 * sqrt((double)6 / (double)(isize + osize))
 		};
 	}
-
-	template <nn_params::nn_activ_t activ, nn_params::nn_init_t init>
-	class initializer;
-
-	template <nn_params::nn_activ_t activ>
-	class initializer<activ, nn_params::nn_init_t::normal>
-	{
-	private:
-		std::normal_distribution<double> distributor;
-
-	public:
-		initializer() = delete;
-
-		initializer(uint64_t isize, uint64_t osize, double param = (double)1)
-		{
-			nn_params::nn_init<nn_params::nn_init_t::normal> params =
-				initialization<activ, nn_params::nn_init_t::normal>(isize, osize, param);
-
-			distributor = std::normal_distribution<double>(params.mean, params.sigm);
-		}
-
-		initializer(const initializer& o) = delete;
-
-		initializer(initializer&& o) = delete;
-
-		~initializer() {}
-
-		template <typename URBG>
-		double operator()(URBG& engine)
-		{
-			return distributor(engine);
-		}
-	};
-
-	template <nn_params::nn_activ_t activ>
-	class initializer<activ, nn_params::nn_init_t::uniform>
-	{
-	private:
-		std::uniform_real_distribution<double> distributor;
-
-	public:
-		initializer() = delete;
-
-		initializer(uint64_t isize, uint64_t osize, double param = (double)1)
-		{
-			nn_params::nn_init<nn_params::nn_init_t::uniform> params =
-				initialization<activ, nn_params::nn_init_t::uniform>(isize, osize, param);
-
-			distributor = std::uniform_real_distribution<double>(params.min, params.max);
-		}
-
-		initializer(const initializer& o) = delete;
-
-		initializer(initializer&& o) = delete;
-
-		~initializer() {}
-
-		template <typename URBG>
-		double operator()(URBG& engine)
-		{
-			return distributor(engine);
-		}
-	};
 }

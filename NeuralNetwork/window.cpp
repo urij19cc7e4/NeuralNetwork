@@ -8,22 +8,6 @@
 using namespace std;
 using namespace window;
 
-void window::GraphWnd::NewFrame(list<info> data, pipe<info>* data_pipe, string name)
-{
-	GraphFrame* wnd_frame = new GraphFrame(move(data), data_pipe, move(name));
-	wnd_frame->Show();
-}
-
-bool window::GraphWnd::OnInit()
-{
-	return true;
-}
-
-int window::GraphWnd::OnExit()
-{
-	return 0;
-}
-
 void window::GraphFrame::AdderProc() noexcept
 {
 	try
@@ -149,14 +133,18 @@ void window::GraphFrame::ProcInfo(const info& data)
 
 void window::GraphFrame::UpdateStatusBar()
 {
-	wxGetApp().CallAfter([this]
+	wxGetApp().CallAfter([this]() mutable noexcept
 		{
-			lock_guard<mutex> lock(this->adderMutex);
+			try
+			{
+				lock_guard<mutex> lock(this->adderMutex);
 
-			this->SetStatusText(_((string("Train Mode: ") + this->trainMode).c_str()), 0);
-			this->SetStatusText(_((string("Train Set: ") + to_string(this->trainSize)).c_str()), 1);
-			this->SetStatusText(_((string("Test Set: ") + to_string(this->testSize)).c_str()), 2);
-			this->SetStatusText(_(this->trainRes.c_str()), 3);
+				this->SetStatusText(_((string("Train Mode: ") + this->trainMode).c_str()), 0);
+				this->SetStatusText(_((string("Train Set: ") + to_string(this->trainSize)).c_str()), 1);
+				this->SetStatusText(_((string("Test Set: ") + to_string(this->testSize)).c_str()), 2);
+				this->SetStatusText(_(this->trainRes.c_str()), 3);
+			}
+			catch (...) {}
 		});
 }
 
@@ -183,6 +171,7 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 
 	axisX->SetFont(font);
 	axisY->SetFont(font);
+
 	axisX->SetDrawOutsideMargins(false);
 	axisY->SetDrawOutsideMargins(false);
 
@@ -196,8 +185,10 @@ window::GraphFrame::GraphFrame(list<info>&& data, pipe<info>* data_pipe, string&
 
 	trainErr->SetContinuity(true);
 	testErr->SetContinuity(true);
+
 	trainErr->SetDrawOutsideMargins(false);
 	testErr->SetDrawOutsideMargins(false);
+
 	trainErr->ShowName(false);
 	testErr->ShowName(false);
 
@@ -234,7 +225,25 @@ window::GraphFrame::~GraphFrame()
 		adderProc.join();
 }
 
+window::NNIOFrame::NNIOFrame()
+{
+}
+
+window::NNIOFrame::~NNIOFrame()
+{
+}
+
+bool window::wxWndProc::OnInit()
+{
+	return true;
+}
+
+int window::wxWndProc::OnExit()
+{
+	return 0;
+}
+
 namespace window
 {
-	wxIMPLEMENT_APP_NO_MAIN(GraphWnd);
+	wxIMPLEMENT_APP_NO_MAIN(wxWndProc);
 }

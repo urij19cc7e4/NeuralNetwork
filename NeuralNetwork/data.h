@@ -10,9 +10,7 @@ namespace error_msg
 	constexpr char tns_mtx_sizes_error[] = "Given tensor and matrix are incompatible by size";
 	constexpr char mtx_vec_sizes_error[] = "Given matrix and vector are incompatible by size";
 	constexpr char data_sizes_error[] = "Given data are incompatible by size";
-	constexpr char tns_sizes_error[] = "Given tensors are incompatible by size";
-	constexpr char mtx_sizes_error[] = "Given matrixes are incompatible by size";
-	constexpr char vec_sizes_error[] = "Given vectors are incompatible by size";
+	constexpr char fnn_wrong_initialize[] = "FNN wrong initialization";
 }
 
 template <typename T, bool initialize = false>
@@ -50,13 +48,13 @@ protected:
 
 	data() noexcept : _data(nullptr), _size((uint64_t)0) {}
 
-	data(uint64_t size) : _size(size)
+	data(uint64_t size) : _data(nullptr), _size(size)
 	{
 		if (_size != (uint64_t)0)
 			_data = initialize ? new T[_size]() : new T[_size];
 	}
 
-	data(const data& o) : _size(o._size)
+	data(const data& o) : _data(nullptr), _size(o._size)
 	{
 		if (o._data != nullptr)
 		{

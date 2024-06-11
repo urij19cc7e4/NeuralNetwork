@@ -7,16 +7,13 @@
 using namespace std;
 using namespace window;
 
-void wx_wrapper::wnd_proc(GraphWnd* graph_wnd) noexcept
+void wx_wrapper::wnd_proc() noexcept
 {
 	try
 	{
-		if (graph_wnd != nullptr)
-		{
-			graph_wnd->OnInit();
-			graph_wnd->OnRun();
-			graph_wnd->OnExit();
-		}
+		wxGetApp().OnInit();
+		wxGetApp().OnRun();
+		wxGetApp().OnExit();
 	}
 	catch (...) {}
 }
@@ -32,8 +29,7 @@ wx_wrapper::wx_wrapper(int argc, char* argv[])
 		if (!wxEntryStart(argc, argv))
 			throw exception("Error starting wxWidgets");
 
-		_window = new GraphWnd();
-		_thread = thread(wnd_proc, _window);
+		_thread = thread(wnd_proc);
 	}
 
 	++_count;
@@ -47,34 +43,69 @@ wx_wrapper::~wx_wrapper()
 
 	if (_count == (uint64_t)0)
 	{
-		for (wxWindow* wx_wnd_frm = _window->GetMainTopWindow(); wx_wnd_frm != nullptr; wx_wnd_frm = _window->GetMainTopWindow())
+		for (wxWindow* wx_wnd_frm = wxGetApp().GetMainTopWindow(); wx_wnd_frm != nullptr; wx_wnd_frm = wxGetApp().GetMainTopWindow())
 			PostMessage((HWND)wx_wnd_frm->GetHandle(), (UINT)WM_CLOSE, (WPARAM)0, (LPARAM)0);
 
 		if (_thread.joinable())
 			_thread.join();
 
-		delete _window;
-		_window = nullptr;
 		_thread = thread();
-
 		wxEntryCleanup();
 	}
 }
 
-void wx_wrapper::create_wnd(const list<info>& data, pipe<info>& data_pipe, const string& name) const
+void wx_wrapper::create_graph_wnd(const list<info>& data, pipe<info>& data_pipe, const string& name) const
 {
 	lock_guard<mutex> lock(_mutex);
-	_window->CallAfter([=, &data_pipe] { wxGetApp().NewFrame(data, &data_pipe, name); });
+
+	wxGetApp().CallAfter([_data = data, _data_pipe = &data_pipe, _name = name]() mutable noexcept
+		{
+			try
+			{
+				(new GraphFrame(move(_data), _data_pipe, move(_name)))->Show();
+			}
+			catch (...) {}
+		});
 }
 
-void wx_wrapper::create_wnd(const list<info>& data, const string& name) const
+void wx_wrapper::create_graph_wnd(const list<info>& data, const string& name) const
 {
 	lock_guard<mutex> lock(_mutex);
-	_window->CallAfter([=] { wxGetApp().NewFrame(data, nullptr, name); });
+
+	wxGetApp().CallAfter([_data = data, _name = name]() mutable noexcept
+		{
+			try
+			{
+				(new GraphFrame(move(_data), nullptr, move(_name)))->Show();
+			}
+			catch (...) {}
+		});
 }
 
-void wx_wrapper::create_wnd(pipe<info>& data_pipe, const string& name) const
+void wx_wrapper::create_graph_wnd(pipe<info>& data_pipe, const string& name) const
 {
 	lock_guard<mutex> lock(_mutex);
-	_window->CallAfter([=, &data_pipe] { wxGetApp().NewFrame(list<info>(), &data_pipe, name); });
+
+	wxGetApp().CallAfter([_data_pipe = &data_pipe, _name = name]() mutable noexcept
+		{
+			try
+			{
+				(new GraphFrame(move(list<info>()), _data_pipe, move(_name)))->Show();
+			}
+			catch (...) {}
+		});
+}
+
+void wx_wrapper::create_nn_io_wnd() const
+{
+	lock_guard<mutex> lock(_mutex);
+
+	wxGetApp().CallAfter([]() mutable noexcept
+		{
+			try
+			{
+				(new NNIOFrame())->Show();
+			}
+			catch (...) {}
+		});
 }

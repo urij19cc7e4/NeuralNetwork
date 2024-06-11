@@ -5,6 +5,18 @@
 namespace arithmetic
 {
 	template <typename T, bool initialize>
+	tns<T, initialize> convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	tns<T, initialize> convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	mtx<T, initialize> convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	mtx<T, initialize> convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
 	vec<T, initialize> operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
 
 	template <typename T, bool initialize>
@@ -45,6 +57,18 @@ protected:
 		_size_1 = (uint64_t)0;
 		_size_2 = (uint64_t)0;
 	}
+
+	template <typename T, bool initialize>
+	friend tns<T, initialize> arithmetic::convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend tns<T, initialize> arithmetic::convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
+
+	template <typename T, bool initialize>
+	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
 
 	template <typename T, bool initialize>
 	friend vec<T, initialize> arithmetic::operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);

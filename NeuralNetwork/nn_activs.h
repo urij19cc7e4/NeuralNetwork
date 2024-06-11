@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <cmath>
 #include "nn_params.h"
