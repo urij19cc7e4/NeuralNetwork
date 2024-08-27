@@ -2,15 +2,6 @@
 
 #include "data.h"
 
-namespace arithmetic
-{
-	template <typename T, bool initialize>
-	vec<T, initialize> operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
-
-	template <typename T, bool initialize>
-	vec<T, initialize> operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
-}
-
 template <typename T, bool initialize>
 class vec : public data<T, initialize>
 {
@@ -35,12 +26,6 @@ protected:
 	{
 		data<T, initialize>::zero();
 	}
-
-	template <typename T, bool initialize>
-	friend vec<T, initialize> arithmetic::operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
-
-	template <typename T, bool initialize>
-	friend vec<T, initialize> arithmetic::operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
 
 	friend class data<T, initialize>;
 
@@ -87,6 +72,11 @@ public:
 	vec& operator=(vec&& o) noexcept
 	{
 		return (vec&)data<T, initialize>::operator=(std::move(o));
+	}
+
+	vec& operator=(const T& sub_o)
+	{
+		return (vec&)data<T, initialize>::operator=(sub_o);
 	}
 
 	vec& operator+=(const vec& o)

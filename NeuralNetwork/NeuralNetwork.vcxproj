@@ -236,6 +236,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nnb.cpp" />
     <ClCompile Include="nn_params.cpp" />
+    <ClCompile Include="nn_trainer.cpp" />
     <ClCompile Include="rnn.cpp" />
     <ClCompile Include="window.cpp" />
     <ClCompile Include="wx_wrapper.cpp" />
@@ -243,11 +244,13 @@
   <ItemGroup>
     <ClInclude Include="data.h" />
     <ClInclude Include="light_appx.h" />
+    <ClInclude Include="nn.h" />
     <ClInclude Include="nn_activs.h" />
     <ClInclude Include="nn_derivs.h" />
-    <ClInclude Include="nn_inits.h" />
     <ClInclude Include="nn_params.h" />
+    <ClInclude Include="nn_trainer.h" />
     <ClInclude Include="pipe.h" />
+    <ClInclude Include="rand_init.h" />
     <ClInclude Include="rand_sel.h" />
     <ClInclude Include="tns.h" />
     <ClInclude Include="info.h" />
@@ -256,7 +259,7 @@
     <ClInclude Include="fnn.h" />
     <ClInclude Include="mtx.h" />
     <ClInclude Include="nnb.h" />
-    <ClInclude Include="rfm.h" />
+    <ClInclude Include="nn_rfm.h" />
     <ClInclude Include="rnn.h" />
     <ClInclude Include="window.h" />
     <ClInclude Include="wx_wrapper.h" />

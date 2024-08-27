@@ -7,10 +7,21 @@
 
 namespace error_msg
 {
-	constexpr char tns_mtx_sizes_error[] = "Given tensor and matrix are incompatible by size";
-	constexpr char mtx_vec_sizes_error[] = "Given matrix and vector are incompatible by size";
+	constexpr char cnn_wrong_init_error[] = "CNN wrong initialization";
+	constexpr char cnn_empty_error[] = "CNN is empty";
+
+	constexpr char fnn_wrong_init_error[] = "FNN wrong initialization";
+	constexpr char fnn_empty_error[] = "FNN is empty";
+
+	constexpr char convo_wrong_type[] = "Wrong convolution type";
+
 	constexpr char data_sizes_error[] = "Given data are incompatible by size";
-	constexpr char fnn_wrong_initialize[] = "FNN wrong initialization";
+	constexpr char tns_sizes_error[] = "Given tensors are incompatible by size";
+	constexpr char mtx_sizes_error[] = "Given matrixes are incompatible by size";
+	constexpr char vec_sizes_error[] = "Given vectors are incompatible by size";
+	constexpr char tns_mtx_sizes_error[] = "Given tensor and matrix are incompatible by size";
+	constexpr char tns_vec_sizes_error[] = "Given tensor and vector are incompatible by size";
+	constexpr char mtx_vec_sizes_error[] = "Given matrix and vector are incompatible by size";
 }
 
 template <typename T, bool initialize = false>
@@ -76,7 +87,7 @@ protected:
 	data& operator=(const data& o)
 	{
 		if (_data != nullptr)
-			delete[]_data;
+			delete[] _data;
 
 		if (o._data == nullptr)
 			zero();
@@ -99,6 +110,15 @@ protected:
 
 		assign(o);
 		o.zero();
+
+		return *this;
+	}
+
+	data& operator=(const T& sub_o)
+	{
+		if (_data != nullptr)
+			for (uint64_t i = (uint64_t)0; i < _size; ++i)
+				_data[i] = sub_o;
 
 		return *this;
 	}

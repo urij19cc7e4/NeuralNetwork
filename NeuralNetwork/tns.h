@@ -2,27 +2,6 @@
 
 #include "data.h"
 
-namespace arithmetic
-{
-	template <typename T, bool initialize>
-	tns<T, initialize> convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	tns<T, initialize> convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	mtx<T, initialize> convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	mtx<T, initialize> convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	tns<T, initialize> rotate(const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	void rotate(tns<T, initialize>& _core);
-}
-
 template <typename T, bool initialize>
 class tns : public data<T, initialize>
 {
@@ -40,11 +19,12 @@ protected:
 
 	virtual void assign(const data<T, initialize>& o) noexcept
 	{
+		const tns& oo = (const tns&)o;
 		data<T, initialize>::assign(o);
 
-		_size_1 = ((tns&)o)._size_1;
-		_size_2 = ((tns&)o)._size_2;
-		_size_3 = ((tns&)o)._size_3;
+		_size_1 = oo._size_1;
+		_size_2 = oo._size_2;
+		_size_3 = oo._size_3;
 	}
 
 	virtual bool equal(const data<T, initialize>& o) const noexcept
@@ -61,24 +41,6 @@ protected:
 		_size_2 = (uint64_t)0;
 		_size_3 = (uint64_t)0;
 	}
-
-	template <typename T, bool initialize>
-	friend tns<T, initialize> arithmetic::convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend tns<T, initialize> arithmetic::convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend tns<T, initialize> arithmetic::rotate(const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend void arithmetic::rotate(tns<T, initialize>& _core);
 
 	friend class data<T, initialize>;
 
@@ -101,9 +63,8 @@ public:
 		else
 		{
 			const std::initializer_list<std::initializer_list<T>>* lists_1 = list.begin();
-			uint64_t l = (uint64_t)0;
 
-			for (uint64_t i = (uint64_t)0; i < _size_1; ++i)
+			for (uint64_t i = (uint64_t)0, l = (uint64_t)0; i < _size_1; ++i)
 				if (lists_1[i].size() == _size_2)
 				{
 					const std::initializer_list<T>* lists_2 = lists_1[i].begin();
@@ -170,6 +131,11 @@ public:
 	tns& operator=(tns&& o) noexcept
 	{
 		return (tns&)data<T, initialize>::operator=(std::move(o));
+	}
+
+	tns& operator=(const T& sub_o)
+	{
+		return (tns&)data<T, initialize>::operator=(sub_o);
 	}
 
 	tns& operator+=(const tns& o)

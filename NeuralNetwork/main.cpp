@@ -33,7 +33,7 @@ using namespace std;
 
 void f(wx_wrapper&wx)
 {
-	fnn network({ 2, 3, 1 },nn_params::nn_activ_t::atan);
+	fnn_train network({ 2, 3, 1 },nn_params::nn_activ_t::atan);
 
 	vec<double> input_t[] =
 	{
@@ -68,15 +68,8 @@ void f(wx_wrapper&wx)
 	};
 
 	pipe<info>* p = new pipe<info>();
-	pipe<info>* pp = new pipe<info>();
 
-	string s("Fuck");
-	wx.create_graph_wnd(*pp,s);
-	for (double x = 0.0, z = 0.0; x <= 10.0; x += 0.01, z += 0.01)
-	{
-		pp->push(info(sin(x), cos(z)));
-		this_thread::sleep_for(chrono::microseconds(10));
-	}
+	wx.create_graph_wnd(*p);
 
 	network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, 0 },nullptr,
 		p, 1000, 75, 25, false, 1, 0.90, 0.10, 0.90, 0.25, 1000, 1e-10);
@@ -91,11 +84,11 @@ void f(wx_wrapper&wx)
 	cout << "-1 xor 0 = " << network.pass_fwd({ -1, 0 })(0) << "\n";
 	cout << "-2 xor -2 = " << network.pass_fwd({ -2, -2 })(0) << "\n";
 
-	pp->push(info(msg_type::max_epo_reached));
 	this_thread::sleep_for(chrono::milliseconds(1000));
 	delete p;
-	delete pp;
 }
+
+#include "light_appx.h"
 
 int main(int argc,char*argv[],char*argp[])
 {
@@ -119,11 +112,11 @@ int main(int argc,char*argv[],char*argp[])
 	to_file<nn_params::nn_activ_t::mish>("mish");
 	to_file<nn_params::nn_activ_t::swish>("swish");
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
-	/*{
+	{
 		wx_wrapper wx;
 		for (int i = 0; i < 1; ++i)
 			f(wx);
-	}*/
+	}
 
 	tns<double> tensor(
 		{
@@ -175,7 +168,18 @@ int main(int argc,char*argv[],char*argp[])
 		}
 	);
 
-	tns<double> result = arithmetic::convolute(tensor, core, vec<double>({ 0.0 }));
+	tns<double> result = arithmetic::convolute(tensor, core);
+
+	pipe<info> pip;
+	wx_wrapper wx;
+	wx.create_graph_wnd(pip);
+	light_appx l(1000, 0, 10000, 0, 10);
+	for (int i=0;i<10000;++i)
+	{
+		pip.push(info(l.forward(),0));
+		this_thread::sleep_for(chrono::microseconds(1));
+	}
+
 
 	getchar();
 }

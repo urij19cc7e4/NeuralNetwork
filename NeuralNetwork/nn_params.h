@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <random>
+
+typedef double FLT;
 
 namespace nn_params
 {
@@ -37,119 +38,44 @@ namespace nn_params
 		__count__
 	};
 
-	template <nn_init_t init>
-	struct nn_init;
-
-	template <>
-	struct nn_init<nn_init_t::normal>
+	enum class nn_convo_t : uint64_t
 	{
-		double mean;
-		double sigm;
+		many_to_many,
+		many_to_one,
+		one_to_one,
+		__count__
 	};
 
-	template <>
-	struct nn_init<nn_init_t::uniform>
-	{
-		double max;
-		double min;
-	};
-
-	struct fnn_layer_info
+	struct fnn_info
 	{
 		uint64_t isize;
 		uint64_t osize;
 		nn_activ_t activ;
 		nn_init_t init;
-		double param;
+		FLT scale_x;
+		FLT scale_y;
+		FLT scale_z;
 	};
 
-	extern double (*activs[(uint64_t)nn_activ_t::__count__])(double, double);
-	extern double (*derivs[(uint64_t)nn_activ_t::__count__])(double, double, double);
-
-	extern nn_init<nn_init_t::normal> (*inits_normal[(uint64_t)nn_activ_t::__count__])(uint64_t, uint64_t, double);
-	extern nn_init<nn_init_t::uniform> (*inits_uniform[(uint64_t)nn_activ_t::__count__])(uint64_t, uint64_t, double);
-
-	extern inline double activation(double x, double p, nn_activ_t activ);
-	extern inline double derivation(double x, double y, double p, nn_activ_t activ);
-
-	extern inline nn_init<nn_init_t::normal> init_normal(uint64_t isize, uint64_t osize, double param, nn_activ_t activ);
-	extern inline nn_init<nn_init_t::uniform> init_uniform(uint64_t isize, uint64_t osize, double param, nn_activ_t activ);
-
-	class rand_init_base
+	struct cnn_info
 	{
-	protected:
-		std::mt19937_64 _rand_gen;
-
-	public:
-		rand_init_base() : _rand_gen((std::random_device())()) {}
-
-		rand_init_base(const rand_init_base& o) = delete;
-
-		rand_init_base(rand_init_base&& o) = delete;
-
-		virtual ~rand_init_base() {}
-
-		virtual double operator()() = 0;
+		uint64_t height;
+		uint64_t width;
+		uint64_t size;
+		uint64_t next_height;
+		uint64_t next_width;
+		nn_activ_t activ;
+		nn_init_t init;
+		FLT scale_x;
+		FLT scale_y;
+		FLT scale_z;
+		nn_convo_t convo;
+		bool pool;
 	};
 
-	template <nn_init_t init>
-	class rand_init;
+	extern FLT(*activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT);
+	extern FLT(*derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT);
 
-	template <>
-	class rand_init<nn_init_t::normal> : public rand_init_base
-	{
-	protected:
-		std::normal_distribution<double> _distributor;
-
-	public:
-		rand_init() = delete;
-
-		rand_init(uint64_t isize, uint64_t osize, double param, nn_activ_t activ)
-			: rand_init_base(), _distributor()
-		{
-			nn_init<nn_init_t::normal> params = init_normal(isize, osize, param, activ);
-
-			_distributor = std::normal_distribution<double>(params.mean, params.sigm);
-		}
-
-		rand_init(const rand_init& o) = delete;
-
-		rand_init(rand_init&& o) = delete;
-
-		virtual ~rand_init() {}
-
-		virtual double operator()() override
-		{
-			return _distributor(this->_rand_gen);
-		}
-	};
-
-	template <>
-	class rand_init<nn_init_t::uniform> : public rand_init_base
-	{
-	protected:
-		std::uniform_real_distribution<double> _distributor;
-
-	public:
-		rand_init() = delete;
-
-		rand_init(uint64_t isize, uint64_t osize, double param, nn_activ_t activ)
-			: rand_init_base(), _distributor()
-		{
-			nn_init<nn_init_t::uniform> params = init_uniform(isize, osize, param, activ);
-
-			_distributor = std::uniform_real_distribution<double>(params.min, params.max);
-		}
-
-		rand_init(const rand_init& o) = delete;
-
-		rand_init(rand_init&& o) = delete;
-
-		virtual ~rand_init() {}
-
-		virtual double operator()() override
-		{
-			return _distributor(this->_rand_gen);
-		}
-	};
+	extern inline FLT activation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ);
+	extern inline FLT derivation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ);
 }

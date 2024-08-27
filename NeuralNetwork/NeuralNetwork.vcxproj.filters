@@ -42,6 +42,9 @@
     <ClCompile Include="nn_params.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="nn_trainer.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vec.h">
@@ -59,7 +62,7 @@
     <ClInclude Include="nnb.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="rfm.h">
+    <ClInclude Include="nn_rfm.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="rnn.h">
@@ -69,9 +72,6 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="nn_activs.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
-    <ClInclude Include="nn_inits.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="nn_derivs.h">
@@ -99,6 +99,15 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="wx_wrapper.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="nn.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="nn_trainer.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="rand_init.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

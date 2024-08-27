@@ -6,126 +6,125 @@
 namespace nn_activs
 {
 	template <nn_params::nn_activ_t activ>
-	inline double activation(double x, double p);
+	inline FLT activation(FLT x, FLT sz);
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::signed_pos>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::signed_pos>(FLT x, FLT sz)
 	{
-		return (x >= (double)0 ? (double)1 : (double)-1) * p;
+		return x >= ((FLT)0) ? ((FLT)1) : ((FLT)-1);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::signed_neg>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::signed_neg>(FLT x, FLT sz)
 	{
-		return (x > (double)0 ? (double)1 : (double)-1) * p;
+		return x > ((FLT)0) ? ((FLT)1) : ((FLT)-1);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::thresh_pos>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::thresh_pos>(FLT x, FLT sz)
 	{
-		return (x >= (double)0 ? (double)1 : (double)0) * p;
+		return x >= ((FLT)0) ? ((FLT)1) : ((FLT)0);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::thresh_neg>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::thresh_neg>(FLT x, FLT sz)
 	{
-		return (x > (double)0 ? (double)1 : (double)0) * p;
+		return x > ((FLT)0) ? ((FLT)1) : ((FLT)0);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::step_sym>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::step_sym>(FLT x, FLT sz)
 	{
-		return (x >= (double)1 ? (double)1 : x <= (double)-1 ? (double)-1 : x) * p;
+		return x >= ((FLT)1) ? ((FLT)1) : x <= ((FLT)-1) ? ((FLT)-1) : x;
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::step_pos>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::step_pos>(FLT x, FLT sz)
 	{
-		return (x >= (double)1 ? (double)1 : x <= (double)0 ? (double)0 : x) * p;
+		return x >= ((FLT)1) ? ((FLT)1) : x <= ((FLT)0) ? ((FLT)0) : x;
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::step_neg>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::step_neg>(FLT x, FLT sz)
 	{
-		return (x >= (double)0 ? (double)0 : x <= (double)-1 ? (double)-1 : x) * p;
+		return x >= ((FLT)0) ? ((FLT)0) : x <= ((FLT)-1) ? ((FLT)-1) : x;
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::rad_bas_pos>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::rad_bas_pos>(FLT x, FLT sz)
 	{
-		return (double)1 * exp((double)-1 * x * x / abs(p));
+		return exp(x * x * ((FLT)-1)) * ((FLT)1);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::rad_bas_neg>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::rad_bas_neg>(FLT x, FLT sz)
 	{
-		return (double)-1 * exp((double)-1 * x * x / abs(p));
+		return exp(x * x * ((FLT)-1)) * ((FLT)-1);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::sigmoid_log>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::sigmoid_log>(FLT x, FLT sz)
 	{
-		return (double)1 / ((double)1 + exp((double)-1 * x * p));
+		return ((FLT)1) / (exp(x * ((FLT)-1)) + ((FLT)1));
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::sigmoid_rat>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::sigmoid_rat>(FLT x, FLT sz)
 	{
-		return x / (abs(x) + p);
+		return x / (abs(x) + ((FLT)1));
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::atan>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::atan>(FLT x, FLT sz)
 	{
-		return atan(x * p);
+		return atan(x);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::tanh>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::tanh>(FLT x, FLT sz)
 	{
-		return tanh(x * p);
+		return tanh(x);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::elu>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::elu>(FLT x, FLT sz)
 	{
-		return (x >= (double)0 ? x : exp(x) - 1) * p;
+		return x >= ((FLT)0) ? x : exp(x) - ((FLT)1);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::gelu>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::gelu>(FLT x, FLT sz)
 	{
-		return ((double)1 + tanh((double)0.797884560802865355 /* √(2 / π) */
-			* ((double)1 + (double)0.044715 * x * x * p) * x)) * x;
+		return (tanh(x) + ((FLT)1)) * x;
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::lelu>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::lelu>(FLT x, FLT sz)
 	{
-		return x >= (double)0 ? x : x * p;
+		return x >= ((FLT)0) ? x : x * ((FLT)0.0625);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::relu>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::relu>(FLT x, FLT sz)
 	{
-		return x >= (double)0 ? x * p : (double)0;
+		return x >= ((FLT)0) ? x : ((FLT)0);
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::mish>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::mish>(FLT x, FLT sz)
 	{
-		return tanh(log((double)1 + exp(x * p)) / p) * x;
+		return tanh(log(exp(x) + ((FLT)1))) * x;
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::swish>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::swish>(FLT x, FLT sz)
 	{
-		return x / ((double)1 + exp((double)-1 * x * p));
+		return x / (exp(x * ((FLT)-1)) + ((FLT)1));
 	}
 
 	template <>
-	inline double activation<nn_params::nn_activ_t::softplus>(double x, double p)
+	inline FLT activation<nn_params::nn_activ_t::softplus>(FLT x, FLT sz)
 	{
-		return log((double)1 + exp(x * p)) / p;
+		return log(exp(x) + ((FLT)1));
 	}
 }

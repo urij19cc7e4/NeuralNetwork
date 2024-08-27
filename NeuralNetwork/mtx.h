@@ -2,27 +2,6 @@
 
 #include "data.h"
 
-namespace arithmetic
-{
-	template <typename T, bool initialize>
-	tns<T, initialize> convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	tns<T, initialize> convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	mtx<T, initialize> convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	mtx<T, initialize> convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	vec<T, initialize> operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
-
-	template <typename T, bool initialize>
-	vec<T, initialize> operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
-}
-
 template <typename T, bool initialize>
 class mtx : public data<T, initialize>
 {
@@ -38,10 +17,11 @@ protected:
 
 	virtual void assign(const data<T, initialize>& o) noexcept
 	{
+		const mtx& oo = (const mtx&)o;
 		data<T, initialize>::assign(o);
 
-		_size_1 = ((mtx&)o)._size_1;
-		_size_2 = ((mtx&)o)._size_2;
+		_size_1 = oo._size_1;
+		_size_2 = oo._size_2;
 	}
 
 	virtual bool equal(const data<T, initialize>& o) const noexcept
@@ -57,24 +37,6 @@ protected:
 		_size_1 = (uint64_t)0;
 		_size_2 = (uint64_t)0;
 	}
-
-	template <typename T, bool initialize>
-	friend tns<T, initialize> arithmetic::convolute(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend tns<T, initialize> arithmetic::convolute(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const mtx<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend mtx<T, initialize> arithmetic::convolute_n_collapse(const tns<T, initialize>& _data, const tns<T, initialize>& _core);
-
-	template <typename T, bool initialize>
-	friend vec<T, initialize> arithmetic::operator*(const mtx<T, initialize>& _mtx, const vec<T, initialize>& _vec);
-
-	template <typename T, bool initialize>
-	friend vec<T, initialize> arithmetic::operator*(const vec<T, initialize>& _vec, const mtx<T, initialize>& _mtx);
 
 	friend class data<T, initialize>;
 
@@ -95,9 +57,8 @@ public:
 		else
 		{
 			const std::initializer_list<T>* lists = list.begin();
-			uint64_t k = (uint64_t)0;
 
-			for (uint64_t i = (uint64_t)0; i < _size_1; ++i)
+			for (uint64_t i = (uint64_t)0, k = (uint64_t)0; i < _size_1; ++i)
 				if (lists[i].size() == _size_2)
 				{
 					const T* elems = lists[i].begin();
@@ -146,6 +107,11 @@ public:
 	mtx& operator=(mtx&& o) noexcept
 	{
 		return (mtx&)data<T, initialize>::operator=(std::move(o));
+	}
+
+	mtx& operator=(const T& sub_o)
+	{
+		return (mtx&)data<T, initialize>::operator=(sub_o);
 	}
 
 	mtx& operator+=(const mtx& o)

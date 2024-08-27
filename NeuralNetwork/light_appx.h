@@ -23,7 +23,7 @@ private:
 		else
 			return (_ln_end - log((exp(_ln_end) - exp(_ln_start))
 				* (double)_pos / (double)(_count - (uint64_t)1) + exp(_ln_start)))
-				* (_end - _start) / (_ln_start - _ln_end) + _end;
+			* (_end - _start) / (_ln_start - _ln_end) + _end;
 	}
 
 public:
