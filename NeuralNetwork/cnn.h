@@ -24,8 +24,8 @@ private:
 
 public:
 	cnn() noexcept;
-	cnn(uint64_t height, uint64_t width, uint64_t size, uint64_t next_height, uint64_t next_width, nn_params::nn_activ_t activ,
-		nn_params::nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
+	cnn(uint64_t height, uint64_t width, uint64_t size, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
+		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
 	cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
 		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
 	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
@@ -92,6 +92,7 @@ private:
 	bool _pool;
 
 	friend class cnn;
+	friend class cnn_2_fnn;
 
 public:
 	cnn_trainy() = delete;

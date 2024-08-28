@@ -64,6 +64,7 @@ private:
 	vec<FLT> _bias_gd;
 
 	friend class fnn;
+	friend class cnn_2_fnn;
 
 public:
 	fnn_trainy() = delete;

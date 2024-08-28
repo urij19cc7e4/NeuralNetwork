@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "rfm.h"
+#include "nn_rfm.h"
 #include "cnn.h"
 #include "fnn.h"
 #include "rnn.h"
@@ -31,62 +31,62 @@ using namespace std;
 //	deriv_file.close();
 //}
 
-void f(wx_wrapper&wx)
-{
-	fnn_train network({ 2, 3, 1 },nn_params::nn_activ_t::atan);
-
-	vec<double> input_t[] =
-	{
-		{ -1, -1 },
-		{ -1, 1 },
-		{ 1, -1 },
-		{ 1, 1 }
-	};
-
-	vec<double> output_t[] =
-	{
-		{ -0.5 },
-		{ 0.5 },
-		{ 0.5 },
-		{ -0.5 }
-	};
-
-	vec<double> input_test[] =
-	{
-		{ -2, 0 },
-		{ 5, 1 },
-		{ -1, 0 },
-		{ -2, -2 }
-	};
-
-	vec<double> output_test[] =
-	{
-		{ 0.5 },
-		{ 0.5 },
-		{ 0.5 },
-		{ -0.5 }
-	};
-
-	pipe<info>* p = new pipe<info>();
-
-	wx.create_graph_wnd(*p);
-
-	network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, 0 },nullptr,
-		p, 1000, 75, 25, false, 1, 0.90, 0.10, 0.90, 0.25, 1000, 1e-10);
-
-	cout << "0 xor 0 = " << network.pass_fwd({ -1, -1 })(0) << "\n";
-	cout << "0 xor 1 = " << network.pass_fwd({ -1, 1 })(0) << "\n";
-	cout << "1 xor 0 = " << network.pass_fwd({ 1, -1 })(0) << "\n";
-	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
-	cout << "\n";
-	cout << "-2 xor 0 = " << network.pass_fwd({ -2, 0 })(0) << "\n";
-	cout << "5 xor 1 = " << network.pass_fwd({ 5, 1 })(0) << "\n";
-	cout << "-1 xor 0 = " << network.pass_fwd({ -1, 0 })(0) << "\n";
-	cout << "-2 xor -2 = " << network.pass_fwd({ -2, -2 })(0) << "\n";
-
-	this_thread::sleep_for(chrono::milliseconds(1000));
-	delete p;
-}
+//void f(wx_wrapper&wx)
+//{
+//	fnn_train network({ 2, 3, 1 },nn_params::nn_activ_t::atan);
+//
+//	vec<double> input_t[] =
+//	{
+//		{ -1, -1 },
+//		{ -1, 1 },
+//		{ 1, -1 },
+//		{ 1, 1 }
+//	};
+//
+//	vec<double> output_t[] =
+//	{
+//		{ -0.5 },
+//		{ 0.5 },
+//		{ 0.5 },
+//		{ -0.5 }
+//	};
+//
+//	vec<double> input_test[] =
+//	{
+//		{ -2, 0 },
+//		{ 5, 1 },
+//		{ -1, 0 },
+//		{ -2, -2 }
+//	};
+//
+//	vec<double> output_test[] =
+//	{
+//		{ 0.5 },
+//		{ 0.5 },
+//		{ 0.5 },
+//		{ -0.5 }
+//	};
+//
+//	pipe<info>* p = new pipe<info>();
+//
+//	wx.create_graph_wnd(*p);
+//
+//	network.train_stoch_mode({ input_t, output_t, 4 }, { nullptr, nullptr, 0 },nullptr,
+//		p, 1000, 75, 25, false, 1, 0.90, 0.10, 0.90, 0.25, 1000, 1e-10);
+//
+//	cout << "0 xor 0 = " << network.pass_fwd({ -1, -1 })(0) << "\n";
+//	cout << "0 xor 1 = " << network.pass_fwd({ -1, 1 })(0) << "\n";
+//	cout << "1 xor 0 = " << network.pass_fwd({ 1, -1 })(0) << "\n";
+//	cout << "1 xor 1 = " << network.pass_fwd({ 1, 1 })(0) << "\n";
+//	cout << "\n";
+//	cout << "-2 xor 0 = " << network.pass_fwd({ -2, 0 })(0) << "\n";
+//	cout << "5 xor 1 = " << network.pass_fwd({ 5, 1 })(0) << "\n";
+//	cout << "-1 xor 0 = " << network.pass_fwd({ -1, 0 })(0) << "\n";
+//	cout << "-2 xor -2 = " << network.pass_fwd({ -2, -2 })(0) << "\n";
+//
+//	this_thread::sleep_for(chrono::milliseconds(1000));
+//	delete p;
+//}
 
 #include "light_appx.h"
 
@@ -112,65 +112,72 @@ int main(int argc,char*argv[],char*argp[])
 	to_file<nn_params::nn_activ_t::mish>("mish");
 	to_file<nn_params::nn_activ_t::swish>("swish");
 	to_file<nn_params::nn_activ_t::softplus>("softplus");*/
-	{
+
+	/*{
 		wx_wrapper wx;
 		for (int i = 0; i < 1; ++i)
 			f(wx);
-	}
+	}*/
 
-	tns<double> tensor(
+	tns<FLT> tensor(
 		{
 			{
-				{ 20.0, 18.0 },
-				{ 22.0, 10.0 },
-				{ 30.0, 17.0 },
-				{ 44.0, 60.0 },
-				{ 25.0, 50.0 }
+				{ -45.0,  67.0, -23.0,  89.0, -12.0 },
+				{  34.0, -56.0,  78.0, -90.0,  12.0 },
+				{  23.0,  45.0, -67.0,  89.0, -34.0 },
+				{ -78.0,  90.0, -12.0,  34.0, -56.0 },
+				{  67.0, -89.0,  23.0, -45.0,  78.0 }
 			},
 			{
-				{ 10.0, 19.0 },
-				{ 20.0, 58.0 },
-				{ 15.0, 16.0 },
-				{ 40.0, 60.0 },
-				{ 50.0, 55.0 }
+				{  12.0, -34.0,  56.0, -78.0,  90.0 },
+				{ -23.0,  45.0, -67.0,  89.0, -12.0 },
+				{  34.0, -56.0,  78.0, -90.0,  23.0 },
+				{ -45.0,  67.0, -89.0,  12.0, -34.0 },
+				{  56.0, -78.0,  90.0, -23.0,  45.0 }
 			},
 			{
-				{ 1.0, 9.0 },
-				{ 2.0, 8.0 },
-				{ 3.0, 7.0 },
-				{ 4.0, 6.0 },
-				{ 5.0, 5.0 }
+				{ -67.0,  89.0, -12.0,  34.0, -56.0 },
+				{  78.0, -90.0,  23.0, -45.0,  67.0 },
+				{ -89.0,  12.0, -34.0,  56.0, -78.0 },
+				{  90.0, -23.0,  45.0, -67.0,  89.0 },
+				{ -12.0,  34.0, -56.0,  78.0, -90.0 }
 			},
 			{
-				{ 1.0, 9.0 },
-				{ 2.0, 8.0 },
-				{ 3.0, 7.0 },
-				{ 4.0, 6.0 },
-				{ 5.0, 5.0 }
+				{  23.0, -45.0,  67.0, -89.0,  12.0 },
+				{ -34.0,  56.0, -78.0,  90.0, -23.0 },
+				{  45.0, -67.0,  89.0, -12.0,  34.0 },
+				{ -56.0,  78.0, -90.0,  23.0, -45.0 },
+				{  67.0, -89.0,  12.0, -34.0,  56.0 }
 			},
 			{
-				{ 1.0, 9.0 },
-				{ 2.0, 8.0 },
-				{ 3.0, 7.0 },
-				{ 4.0, 6.0 },
-				{ 5.0, 5.0 }
+				{ -78.0,  90.0, -23.0,  45.0, -67.0 },
+				{  89.0, -12.0,  34.0, -56.0,  78.0 },
+				{ -90.0,  23.0, -45.0,  67.0, -89.0 },
+				{  12.0, -34.0,  56.0, -78.0,  90.0 },
+				{ -23.0,  45.0, -67.0,  89.0, -12.0 }
 			}
 		}
 	);
 
-	tns<double> core(
+
+	tns<FLT> core(
 		{
 			{
 				{ -1.0, -1.0, -1.0 },
 				{ -1.0, 10.0, -1.0 },
 				{ -1.0, -1.0, -1.0 },
+			},
+			{
+				{ 1.0,  1.0,  1.0 },
+				{ 1.0, -10.0, 1.0 },
+				{ 1.0,  1.0,  1.0 },
 			}
 		}
 	);
 
-	tns<double> result = arithmetic::convolute(tensor, core);
+	tns<FLT> result = arithmetic::convolute(tensor, core,nn_params::nn_convo_t::many_to_one);
 
-	pipe<info> pip;
+	/*pipe<info> pip;
 	wx_wrapper wx;
 	wx.create_graph_wnd(pip);
 	light_appx l(1000, 0, 10000, 0, 10);
@@ -178,7 +185,7 @@ int main(int argc,char*argv[],char*argp[])
 	{
 		pip.push(info(l.forward(),0));
 		this_thread::sleep_for(chrono::microseconds(1));
-	}
+	}*/
 
 
 	getchar();

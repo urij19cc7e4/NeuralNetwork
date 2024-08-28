@@ -31,13 +31,6 @@ namespace nn_params
 		__count__
 	};
 
-	enum class nn_init_t : uint64_t
-	{
-		normal,
-		uniform,
-		__count__
-	};
-
 	enum class nn_convo_t : uint64_t
 	{
 		many_to_many,
@@ -46,7 +39,30 @@ namespace nn_params
 		__count__
 	};
 
-	struct fnn_info
+	enum class nn_init_t : uint64_t
+	{
+		normal,
+		uniform,
+		__count__
+	};
+
+	struct nn_info {};
+
+	struct cnn_info : nn_info
+	{
+		uint64_t height;
+		uint64_t width;
+		uint64_t size;
+		nn_activ_t activ;
+		nn_init_t init;
+		FLT scale_x;
+		FLT scale_y;
+		FLT scale_z;
+		nn_convo_t convo;
+		bool pool;
+	};
+
+	struct fnn_info : nn_info
 	{
 		uint64_t isize;
 		uint64_t osize;
@@ -57,20 +73,9 @@ namespace nn_params
 		FLT scale_z;
 	};
 
-	struct cnn_info
+	struct cnn_2_fnn_info : nn_info
 	{
-		uint64_t height;
-		uint64_t width;
-		uint64_t size;
-		uint64_t next_height;
-		uint64_t next_width;
-		nn_activ_t activ;
-		nn_init_t init;
-		FLT scale_x;
-		FLT scale_y;
-		FLT scale_z;
-		nn_convo_t convo;
-		bool pool;
+		bool max_pool;
 	};
 
 	extern FLT(*activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT);

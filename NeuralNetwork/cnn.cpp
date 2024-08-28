@@ -10,8 +10,8 @@ cnn::cnn() noexcept
 	: _core(), _bias(), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(nn_activ_t::__count__),
 	_scale_x((FLT)1), _scale_y((FLT)1), _scale_z((FLT)1), _convo(nn_convo_t::__count__), _pool(false) {}
 
-cnn::cnn(uint64_t height, uint64_t width, uint64_t size, uint64_t next_height, uint64_t next_width,
-	nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool)
+cnn::cnn(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_init_t init,
+	FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool)
 	: _core(size, height, width), _bias(size), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(activ),
 	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool)
 {
@@ -20,23 +20,17 @@ cnn::cnn(uint64_t height, uint64_t width, uint64_t size, uint64_t next_height, u
 		throw exception(error_msg::cnn_wrong_init_error);
 	else
 	{
-		if (next_height == (uint64_t)0 || next_width == (uint64_t)0)
-		{
-			next_height = height;
-			next_width = width;
-		}
-
 		rand_init_base* randomizer = nullptr;
 
 		__assume(init < nn_init_t::__count__);
 		switch (init)
 		{
 		case nn_init_t::normal:
-			randomizer = new rand_init<nn_init_t::normal>(height * width, next_height * next_width);
+			randomizer = new rand_init<nn_init_t::normal>(height * width, height * width);
 			break;
 
 		case nn_init_t::uniform:
-			randomizer = new rand_init<nn_init_t::uniform>(height * width, next_height * next_width);
+			randomizer = new rand_init<nn_init_t::uniform>(height * width, height * width);
 			break;
 
 		default:
@@ -147,7 +141,7 @@ uint64_t cnn::get_param_count() const noexcept
 	return _core.get_size() + _bias.get_size();
 }
 
-nn_trainy* cnn::get_trainy(const data<FLT>& _data_prev) const
+nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
 	return new cnn_trainy(cnn_data, _core, _convo, _pool);
@@ -159,7 +153,7 @@ nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev) const
 	return new cnn_trainy(cnn_data, _core, _convo, _pool);
 }
 
-void cnn::pass_fwd(data<FLT>& _data) const
+void cnn::pass_fwd(::data<FLT>& _data) const
 {
 	if (is_empty())
 		throw exception(error_msg::cnn_empty_error);
@@ -178,7 +172,7 @@ void cnn::pass_fwd(data<FLT>& _data) const
 	}
 }
 
-FLT cnn::train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const
+FLT cnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 {
 	if (is_empty())
 		throw exception(error_msg::cnn_empty_error);
@@ -250,7 +244,7 @@ void cnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 	}
 }
 
-void cnn::train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const
+void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 {
 	if (is_empty())
 		throw exception(error_msg::cnn_empty_error);
@@ -385,7 +379,7 @@ cnn_trainy::cnn_trainy(const tns<FLT>& data, const tns<FLT>& core, nn_convo_t co
 
 cnn_trainy::~cnn_trainy() {}
 
-void cnn_trainy::update(const data<FLT>& _data_prev, FLT alpha, FLT speed)
+void cnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 {
 	const tns<FLT>& input = (const tns<FLT>&)_data_prev;
 

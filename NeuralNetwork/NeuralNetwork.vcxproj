@@ -233,6 +233,7 @@
     <ClCompile Include="info.cpp" />
     <ClCompile Include="cnn.cpp" />
     <ClCompile Include="fnn.cpp" />
+    <ClCompile Include="layer_adapters.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nnb.cpp" />
     <ClCompile Include="nn_params.cpp" />
@@ -243,8 +244,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data.h" />
+    <ClInclude Include="layer_adapters.h" />
     <ClInclude Include="light_appx.h" />
     <ClInclude Include="nn.h" />
+    <ClInclude Include="nnb.h" />
     <ClInclude Include="nn_activs.h" />
     <ClInclude Include="nn_derivs.h" />
     <ClInclude Include="nn_params.h" />
@@ -258,7 +261,6 @@
     <ClInclude Include="cnn.h" />
     <ClInclude Include="fnn.h" />
     <ClInclude Include="mtx.h" />
-    <ClInclude Include="nnb.h" />
     <ClInclude Include="nn_rfm.h" />
     <ClInclude Include="rnn.h" />
     <ClInclude Include="window.h" />

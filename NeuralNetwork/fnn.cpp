@@ -107,7 +107,7 @@ uint64_t fnn::get_param_count() const noexcept
 	return _link.get_size() + _bias.get_size();
 }
 
-nn_trainy* fnn::get_trainy(const data<FLT>& _data_prev) const
+nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev) const
 {
 	return new fnn_trainy(_link.get_size_2(), _link.get_size_1());
 }
@@ -117,7 +117,7 @@ nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev) const
 	return new fnn_trainy(_link.get_size_2(), _link.get_size_1());
 }
 
-void fnn::pass_fwd(data<FLT>& _data) const
+void fnn::pass_fwd(::data<FLT>& _data) const
 {
 	if (is_empty())
 		throw exception(error_msg::fnn_empty_error);
@@ -132,7 +132,7 @@ void fnn::pass_fwd(data<FLT>& _data) const
 	}
 }
 
-FLT fnn::train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const
+FLT fnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 {
 	if (is_empty())
 		throw exception(error_msg::fnn_empty_error);
@@ -173,7 +173,7 @@ void fnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 	}
 }
 
-void fnn::train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const
+void fnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 {
 	if (is_empty())
 		throw exception(error_msg::fnn_empty_error);
@@ -245,7 +245,7 @@ fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize)
 
 fnn_trainy::~fnn_trainy() {}
 
-void fnn_trainy::update(const data<FLT>& _data_prev, FLT alpha, FLT speed)
+void fnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 {
 	const vec<FLT>& input = (const vec<FLT>&)_data_prev;
 

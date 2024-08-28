@@ -86,18 +86,24 @@ protected:
 
 	data& operator=(const data& o)
 	{
-		if (_data != nullptr)
-			delete[] _data;
-
-		if (o._data == nullptr)
-			zero();
-		else
-		{
-			assign(o);
-			_data = initialize ? new T[_size]() : new T[_size];
-
+		if (_size == o._size)
 			for (uint64_t i = (uint64_t)0; i < _size; ++i)
 				_data[i] = o._data[i];
+		else
+		{
+			if (_data != nullptr)
+				delete[] _data;
+
+			if (o._data == nullptr)
+				zero();
+			else
+			{
+				assign(o);
+				_data = initialize ? new T[_size]() : new T[_size];
+
+				for (uint64_t i = (uint64_t)0; i < _size; ++i)
+					_data[i] = o._data[i];
+			}
 		}
 
 		return *this;
