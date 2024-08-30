@@ -49,6 +49,9 @@ fnn::fnn(const mtx<FLT>& link, const vec<FLT>& bias, nn_activ_t activ, FLT scale
 fnn::fnn(mtx<FLT>&& link, vec<FLT>&& bias, nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z) noexcept
 	: _link(move(link)), _bias(move(bias)), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z) {}
 
+fnn::fnn(const fnn_info& i)
+	: fnn(i.isize, i.osize, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z) {}
+
 fnn::fnn(const fnn& o)
 	: _link(o._link), _bias(o._bias), _activ(o._activ), _scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z) {}
 
@@ -56,6 +59,11 @@ fnn::fnn(fnn&& o) noexcept
 	: _link(move(o._link)), _bias(move(o._bias)), _activ(o._activ), _scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z) {}
 
 fnn::~fnn() {}
+
+nn*fnn::create_new() const
+{
+	return (nn*)(new fnn(*this));
+}
 
 inline nn_activ_t fnn::get_activ_type() const noexcept
 {
@@ -109,26 +117,27 @@ uint64_t fnn::get_param_count() const noexcept
 
 nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev) const
 {
-	return new fnn_trainy(_link.get_size_2(), _link.get_size_1());
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1()));
 }
 
 nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev) const
 {
-	return new fnn_trainy(_link.get_size_2(), _link.get_size_1());
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1()));
 }
 
-void fnn::pass_fwd(::data<FLT>& _data) const
+::data<FLT>*fnn::pass_fwd(const ::data<FLT>&_data) const
 {
 	if (is_empty())
 		throw exception(error_msg::fnn_empty_error);
 	else
 	{
-		vec<FLT>& result = (vec<FLT>&)_data;
-		result = move(multiply(_link, result));
+		vec<FLT>*result_ptr=(vec<FLT>*)(new vec<FLT>(move(multiply(_link,(const vec<FLT>&)_data))));
 
-		__assume(result.get_size() == _bias.get_size());
-		for (uint64_t i = (uint64_t)0; i < result.get_size(); ++i)
-			result(i) = activation(result(i) + _bias(i), _scale_x, _scale_y, _scale_z, _activ);
+		__assume(result_ptr->get_size() == _bias.get_size());
+		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
+			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i), _scale_x, _scale_y, _scale_z, _activ);
+
+		return (::data<FLT>*)result_ptr;
 	}
 }
 
@@ -239,8 +248,8 @@ fnn& fnn::operator=(fnn&& o) noexcept
 fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize)
 	: _activ(osize), _deriv(osize), _link_dt(osize, isize), _bias_dt(osize), _link_gd(osize), _bias_gd(osize)
 {
-	_link_dt = FLT(0);
-	_bias_dt = FLT(0);
+	_link_dt = (FLT)0;
+	_bias_dt = (FLT)0;
 }
 
 fnn_trainy::~fnn_trainy() {}

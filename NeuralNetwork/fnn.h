@@ -22,9 +22,12 @@ public:
 		FLT scale_x, FLT scale_y, FLT scale_z);
 	fnn(const mtx<FLT>& link, const vec<FLT>& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z);
 	fnn(mtx<FLT>&& link, vec<FLT>&& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z) noexcept;
+	fnn(const nn_params::fnn_info&i);
 	fnn(const fnn& o);
 	fnn(fnn&& o) noexcept;
 	virtual ~fnn();
+
+	virtual nn*create_new() const;
 
 	inline nn_params::nn_activ_t get_activ_type() const noexcept;
 	inline FLT get_scale_x() const noexcept;
@@ -40,7 +43,7 @@ public:
 	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev) const;
 	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev) const;
 
-	virtual void pass_fwd(data<FLT>& _data) const;
+	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
 	virtual void train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const;
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const;
@@ -53,7 +56,7 @@ public:
 
 class fnn_trainy : public nn_trainy
 {
-private:
+protected:
 	vec<FLT> _activ;
 	vec<FLT> _deriv;
 

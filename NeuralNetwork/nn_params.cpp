@@ -2,9 +2,38 @@
 #include "nn_activs.h"
 #include "nn_derivs.h"
 
+#include "nn.h"
+#include "cnn.h"
+#include "fnn.h"
+#include "layer_adapters.h"
+
 using namespace nn_params;
 
-FLT(*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
+nn_params::cnn_info::cnn_info(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_init_t init,
+	FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool) : height(height), width(width), size(size),
+	activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z), convo(convo), pool(pool) {}
+
+nn_params::fnn_info::fnn_info(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z)
+	: isize(isize), osize(osize), activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z) {}
+
+nn_params::cnn_2_fnn_info::cnn_2_fnn_info(bool max_pool) : max_pool(max_pool) {}
+
+nn* nn_params::cnn_info::create_new() const
+{
+	return (nn*)(new cnn(*this));
+}
+
+nn* nn_params::fnn_info::create_new() const
+{
+	return (nn*)(new fnn(*this));
+}
+
+nn* nn_params::cnn_2_fnn_info::create_new() const
+{
+	return (nn*)(new cnn_2_fnn(*this));
+}
+
+FLT (*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
 {
 	nn_activs::activation<nn_activ_t::signed_pos>,
 	nn_activs::activation<nn_activ_t::signed_neg>,
@@ -28,7 +57,7 @@ FLT(*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
 	nn_activs::activation<nn_activ_t::softplus>
 };
 
-FLT(*nn_params::derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
+FLT (*nn_params::derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
 {
 	nn_derivs::derivation<nn_activ_t::signed_pos>,
 	nn_derivs::derivation<nn_activ_t::signed_neg>,

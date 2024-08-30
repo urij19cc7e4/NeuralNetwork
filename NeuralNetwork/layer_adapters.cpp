@@ -6,37 +6,43 @@ using namespace nn_params;
 
 cnn_2_fnn::cnn_2_fnn(bool max_pool) noexcept : _max_pool(max_pool) {}
 
+cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn_info&i) noexcept : cnn_2_fnn(i.max_pool) {}
+
 cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn& o) noexcept : _max_pool(o._max_pool) {}
 
 cnn_2_fnn::cnn_2_fnn(cnn_2_fnn&& o) noexcept : _max_pool(o._max_pool) {}
 
 cnn_2_fnn::~cnn_2_fnn() {}
 
+nn*cnn_2_fnn::create_new() const
+{
+	return (nn*)(new cnn_2_fnn(*this));
+}
+
 uint64_t cnn_2_fnn::get_param_count() const noexcept
 {
 	return (uint64_t)0;
 }
 
-nn_trainy* cnn_2_fnn::get_trainy(const data<FLT>& _data_prev) const
+nn_trainy* cnn_2_fnn::get_trainy(const ::data<FLT>& _data_prev) const
 {
-	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
-	return new cnn_2_fnn_trainy(cnn_data,_max_pool);
+	throw exception("Adapter must be between layers.");
 }
 
 nn_trainy* cnn_2_fnn::get_trainy(const nn_trainy& _data_prev) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
-	return new cnn_2_fnn_trainy(cnn_data,_max_pool);
+	return (nn_trainy*)(new cnn_2_fnn_trainy(cnn_data, _max_pool));
 }
 
-void cnn_2_fnn::pass_fwd(data<FLT>& _data) const
+::data<FLT>*cnn_2_fnn::pass_fwd(const ::data<FLT>&_data) const
 {
-	(vec<FLT>&)_data = move(pool_full((tns<FLT>&)_data, _max_pool).to_vec());
+	return (::data<FLT>*)(new vec<FLT>(move(pool_full((const tns<FLT>&)_data,_max_pool))));
 }
 
-FLT cnn_2_fnn::train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const
+FLT cnn_2_fnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 {
-	throw exception("Adaptor must be between layers.");
+	throw exception("Adapter must be between layers.");
 }
 
 void cnn_2_fnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
@@ -54,17 +60,18 @@ void cnn_2_fnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 			cnn_data._core_gd, ((const cnn_2_fnn_trainy&)_data)._max_pool);
 
 	cnn_data._bias_gd = ((const fnn_trainy&)_data)._bias_gd;
+	cnn_data._core_gd *= cnn_data._deriv;
 }
 
-void cnn_2_fnn::train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const
+void cnn_2_fnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 {
-	pool_full_fwd((const tns<FLT>&)_data_prev, ((cnn_2_fnn_trainy&)_data)._pool_map,
-		((fnn_trainy&)_data)._activ, ((cnn_2_fnn_trainy&)_data)._max_pool);
+	throw exception("Adapter must be between layers.");
 }
 
 void cnn_2_fnn::train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const
 {
-	train_fwd(_data, ((const cnn_trainy&)_data_prev)._activ);
+	pool_full_fwd(((const cnn_trainy&)_data_prev)._activ, ((cnn_2_fnn_trainy&)_data)._pool_map,
+		((fnn_trainy&)_data)._activ, ((cnn_2_fnn_trainy&)_data)._max_pool);
 }
 
 void cnn_2_fnn::train_upd(const nn_trainy& _data) {}
@@ -72,15 +79,22 @@ void cnn_2_fnn::train_upd(const nn_trainy& _data) {}
 cnn_2_fnn& cnn_2_fnn::operator=(const cnn_2_fnn& o) noexcept
 {
 	_max_pool = o._max_pool;
+
+	return *this;
 }
 
 cnn_2_fnn& cnn_2_fnn::operator=(cnn_2_fnn&& o) noexcept
 {
 	_max_pool = o._max_pool;
+
+	return *this;
 }
 
 cnn_2_fnn_trainy::cnn_2_fnn_trainy(const tns<FLT>& data, bool max_pool) : fnn_trainy((uint64_t)0, data.get_size_1()),
-	_pool_map(max_pool ? data.get_size_1() : (uint64_t)0), _max_pool(max_pool) {}
+_pool_map(max_pool ? data.get_size_1() : (uint64_t)0), _max_pool(max_pool)
+{
+	_deriv = (FLT)1;
+}
 
 cnn_2_fnn_trainy::~cnn_2_fnn_trainy() {}
 

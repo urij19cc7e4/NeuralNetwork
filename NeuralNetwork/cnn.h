@@ -30,9 +30,12 @@ public:
 		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
 	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
 		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool) noexcept;
+	cnn(const nn_params::cnn_info&i);
 	cnn(const cnn& o);
 	cnn(cnn&& o) noexcept;
 	virtual ~cnn();
+
+	virtual nn*create_new() const;
 
 	inline nn_params::nn_activ_t get_activ_type() const noexcept;
 	inline nn_params::nn_convo_t get_convo_type() const noexcept;
@@ -53,7 +56,7 @@ public:
 	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev) const;
 	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev) const;
 
-	virtual void pass_fwd(data<FLT>& _data) const;
+	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
 	virtual void train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const;
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const;
@@ -66,7 +69,7 @@ public:
 
 class cnn_trainy : public nn_trainy
 {
-private:
+protected:
 	tns<FLT> _activ;
 	tns<FLT> _deriv;
 

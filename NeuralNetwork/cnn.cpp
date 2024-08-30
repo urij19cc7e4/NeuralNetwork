@@ -15,7 +15,8 @@ cnn::cnn(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_in
 	: _core(size, height, width), _bias(size), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(activ),
 	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool)
 {
-	if (height == (uint64_t)0 || width == (uint64_t)0 || size == (uint64_t)0 || scale_x == (FLT)0 || scale_y == (FLT)0 || scale_z == (FLT)0
+	if (height == (uint64_t)0 || width == (uint64_t)0 || size == (uint64_t)0
+		|| scale_x == (FLT)0 || scale_y == (FLT)0 || scale_z == (FLT)0
 		|| convo >= nn_convo_t::__count__ || activ >= nn_activ_t::__count__ || init >= nn_init_t::__count__)
 		throw exception(error_msg::cnn_wrong_init_error);
 	else
@@ -56,6 +57,9 @@ cnn::cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias,
 	: _core(move(core)), _bias(move(bias)), _bn_link(bn_link), _bn_bias(bn_bias), _activ(activ),
 	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool) {}
 
+cnn::cnn(const cnn_info& i)
+	: cnn(i.height, i.width, i.size, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z, i.convo, i.pool) {}
+
 cnn::cnn(const cnn& o)
 	: _core(o._core), _bias(o._bias), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _activ(o._activ),
 	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _convo(o._convo), _pool(o._pool) {}
@@ -65,6 +69,11 @@ cnn::cnn(cnn&& o) noexcept
 	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _convo(o._convo), _pool(o._pool) {}
 
 cnn::~cnn() {}
+
+nn*cnn::create_new() const
+{
+	return (nn*)(new cnn(*this));
+}
 
 inline nn_activ_t cnn::get_activ_type() const noexcept
 {
@@ -144,31 +153,32 @@ uint64_t cnn::get_param_count() const noexcept
 nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
-	return new cnn_trainy(cnn_data, _core, _convo, _pool);
+	return (nn_trainy*)(new cnn_trainy(cnn_data, _core, _convo, _pool));
 }
 
 nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
-	return new cnn_trainy(cnn_data, _core, _convo, _pool);
+	return (nn_trainy*)(new cnn_trainy(cnn_data, _core, _convo, _pool));
 }
 
-void cnn::pass_fwd(::data<FLT>& _data) const
+::data<FLT>*cnn::pass_fwd(const ::data<FLT>&_data) const
 {
 	if (is_empty())
 		throw exception(error_msg::cnn_empty_error);
 	else
 	{
-		tns<FLT>& result = (tns<FLT>&)_data;
-		result = move(convolute(result, _core, _convo));
-		uint64_t layer_size = result.get_size_2() * result.get_size_3();
+		tns<FLT>*result_ptr=(tns<FLT>*)(new tns<FLT>(move(convolute((const tns<FLT>&)_data,_core,_convo))));
+		uint64_t layer_size=result_ptr->get_size_2()*result_ptr->get_size_3();
 
-		__assume(result.get_size_1() == _bias.get_size());
-		for (uint64_t i = (uint64_t)0; i < result.get_size(); ++i)
-			result(i) = activation(result(i) + _bias(i / layer_size), _scale_x, _scale_y, _scale_z, _activ);
+		__assume(result_ptr->get_size_1() == _bias.get_size());
+		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
+			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i / layer_size), _scale_x, _scale_y, _scale_z, _activ);
 
 		if (_pool)
-			result = move(pool(result));
+			*result_ptr=move(pool(*result_ptr));
+
+		return (::data<FLT>*)result_ptr;
 	}
 }
 
@@ -178,7 +188,7 @@ FLT cnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 		throw exception(error_msg::cnn_empty_error);
 	else
 	{
-		FLT error(0), bias_gd(0);
+		FLT error(0);
 		cnn_trainy& cnn_data = (cnn_trainy&)_data;
 		const tns<FLT>& res_data = (const tns<FLT>&)_data_next;
 		uint64_t layer_size = res_data.get_size_2() * res_data.get_size_3();
@@ -202,7 +212,7 @@ FLT cnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 		}
 		else
 		{
-			cnn_data._bias_gd = FLT(0);
+			cnn_data._bias_gd = (FLT)0;
 
 			__assume(cnn_data._core_gd.get_size() == res_data.get_size());
 			__assume(cnn_data._core_gd.get_size() == cnn_data._activ.get_size());
@@ -373,8 +383,8 @@ cnn_trainy::cnn_trainy(const tns<FLT>& data, const tns<FLT>& core, nn_convo_t co
 		_bias_gd = move(vec<FLT>(convoluted.get_size_1()));
 	}
 
-	_core_dt = FLT(0);
-	_bias_dt = FLT(0);
+	_core_dt = (FLT)0;
+	_bias_dt = (FLT)0;
 }
 
 cnn_trainy::~cnn_trainy() {}

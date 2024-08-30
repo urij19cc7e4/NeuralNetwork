@@ -14,15 +14,18 @@ private:
 
 public:
 	cnn_2_fnn(bool max_pool = false) noexcept;
+	cnn_2_fnn(const nn_params::cnn_2_fnn_info&i) noexcept;
 	cnn_2_fnn(const cnn_2_fnn& o) noexcept;
 	cnn_2_fnn(cnn_2_fnn&& o) noexcept;
 	virtual ~cnn_2_fnn();
+
+	virtual nn*create_new() const;
 
 	virtual uint64_t get_param_count() const noexcept;
 	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev) const;
 	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev) const;
 
-	virtual void pass_fwd(data<FLT>& _data) const;
+	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
 	virtual void train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const;
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const;

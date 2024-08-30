@@ -17,7 +17,7 @@ template <typename T, bool strict>
 class rand_sel;
 
 template <typename T>
-class rand_sel<typename T, false> : rand_sel_i<T>
+class rand_sel<typename T, false> : public rand_sel_i<T>
 {
 private:
 	std::mt19937_64 _rand_gen;
@@ -43,7 +43,7 @@ public:
 };
 
 template <typename T>
-class rand_sel<typename T, true> : rand_sel_i<T>
+class rand_sel<typename T, true> : public rand_sel_i<T>
 {
 private:
 	std::mt19937_64 _rand_gen;

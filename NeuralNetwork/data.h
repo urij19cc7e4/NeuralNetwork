@@ -7,6 +7,9 @@
 
 namespace error_msg
 {
+	constexpr char nnb_wrong_init_error[] = "NN base wrong initialization";
+	constexpr char nnb_empty_error[] = "NN base is empty";
+
 	constexpr char cnn_wrong_init_error[] = "CNN wrong initialization";
 	constexpr char cnn_empty_error[] = "CNN is empty";
 
@@ -77,12 +80,6 @@ protected:
 	}
 
 	data(data&& o) noexcept : _data(o._data), _size(o._size) {}
-
-	virtual ~data()
-	{
-		if (_data != nullptr)
-			delete[] _data;
-	}
 
 	data& operator=(const data& o)
 	{
@@ -226,6 +223,12 @@ protected:
 	}
 
 public:
+	virtual ~data()
+	{
+		if (_data != nullptr)
+			delete[] _data;
+	}
+
 	tns<T, initialize> to_tns(uint64_t size_1, uint64_t size_2, uint64_t size_3)
 	{
 		if (_data == nullptr)

@@ -847,22 +847,22 @@ namespace arithmetic
 	}
 
 	template <typename T, bool initialize>
-	vec<T, initialize> pool_full(const tns<T, initialize>& _data,bool _max_pool)
+	vec<T, initialize> pool_full(const tns<T, initialize>& _data, bool _max_pool)
 	{
 		if (_data.is_empty())
 			return vec<T, initialize>();
 		else
 		{
-			uint64_t size_1 = _data.get_size_1(), size_2_3 = _data.get_size_2()*_data.get_size_3();
+			uint64_t size_1 = _data.get_size_1(), size_2_3 = _data.get_size_2() * _data.get_size_3();
 			vec<T, initialize> result(size_1);
 
 			if (_max_pool)
-				for (uint64_t i = (uint64_t)0,j=(uint64_t)0; i < size_1; ++i)
+				for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < size_1; ++i)
 				{
 					T cell = _data(j);
 					++j;
 
-					for (uint64_t k = (uint64_t)1; k < size_2_3; ++j,++k)
+					for (uint64_t k = (uint64_t)1; k < size_2_3; ++j, ++k)
 						if (cell < _data(j))
 							cell = _data(j);
 
@@ -874,9 +874,9 @@ namespace arithmetic
 					T cell(0);
 
 					for (uint64_t k = (uint64_t)0; k < size_2_3; ++j, ++k)
-							cell += _data(j);
+						cell += _data(j);
 
-					result(i) = std::move(cell/T(size_2_3));
+					result(i) = std::move(cell / T(size_2_3));
 				}
 
 			return result;
@@ -887,7 +887,7 @@ namespace arithmetic
 	void pool_full_bwd(const vec<T, initialize>& _data, const vec<uint64_t, initialize>& _pool,
 		tns<T, initialize>& _res, bool _max_pool)
 	{
-		if (_data.is_empty() || (_pool.is_empty()&&_max_pool) || _res.is_empty())
+		if (_data.is_empty() || (_pool.is_empty() && _max_pool) || _res.is_empty())
 			return;
 		else if ((!_max_pool || _res.get_size_1() == _pool.get_size()) && _res.get_size_1() == _data.get_size())
 		{
@@ -898,10 +898,10 @@ namespace arithmetic
 				_res = T(0);
 
 				for (uint64_t i = (uint64_t)0; i < size_1; ++i)
-					_res(i, (uint64_t)0, _pool(i)) = _data(i);
+					_res(_pool(i)) = _data(i);
 			}
 			else
-				for (uint64_t i = (uint64_t)0,j=(uint64_t)0; i < size_1; ++i)
+				for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < size_1; ++i)
 					for (uint64_t k = (uint64_t)0; k < size_2_3; ++j, ++k)
 						_res(j) = _data(i);
 		}
@@ -913,9 +913,9 @@ namespace arithmetic
 	void pool_full_fwd(const tns<T, initialize>& _data, vec<uint64_t, initialize>& _pool,
 		vec<T, initialize>& _res, bool _max_pool)
 	{
-		if (_data.is_empty() || (_pool.is_empty()&&_max_pool) || _res.is_empty())
+		if (_data.is_empty() || (_pool.is_empty() && _max_pool) || _res.is_empty())
 			return;
-		else if ((!_max_pool||_data.get_size_1()==_pool.get_size())&&_data.get_size_1()==_res.get_size())
+		else if ((!_max_pool || _data.get_size_1() == _pool.get_size()) && _data.get_size_1() == _res.get_size())
 		{
 			uint64_t size_1 = _data.get_size_1(), size_2_3 = _data.get_size_2() * _data.get_size_3();
 
