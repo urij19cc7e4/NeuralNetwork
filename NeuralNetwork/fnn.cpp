@@ -23,11 +23,11 @@ fnn::fnn(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT s
 		switch (init)
 		{
 		case nn_init_t::normal:
-			randomizer = new rand_init<nn_init_t::normal>(isize, osize);
+			randomizer = (rand_init_base*)(new rand_init<nn_init_t::normal>(isize, osize));
 			break;
 
 		case nn_init_t::uniform:
-			randomizer = new rand_init<nn_init_t::uniform>(isize, osize);
+			randomizer = (rand_init_base*)(new rand_init<nn_init_t::uniform>(isize, osize));
 			break;
 
 		default:
@@ -115,14 +115,14 @@ uint64_t fnn::get_param_count() const noexcept
 	return _link.get_size() + _bias.get_size();
 }
 
-nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev) const
+nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out) const
 {
-	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1()));
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out));
 }
 
-nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev) const
+nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out) const
 {
-	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1()));
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out));
 }
 
 ::data<FLT>*fnn::pass_fwd(const ::data<FLT>&_data) const
@@ -245,8 +245,8 @@ fnn& fnn::operator=(fnn&& o) noexcept
 	return *this;
 }
 
-fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize)
-	: _activ(osize), _deriv(osize), _link_dt(osize, isize), _bias_dt(osize), _link_gd(osize), _bias_gd(osize)
+fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out)
+	: _activ(osize), _deriv(osize), _link_dt(osize, isize), _bias_dt(osize), _link_gd(osize), _bias_gd(osize), _drop_out(drop_out)
 {
 	_link_dt = (FLT)0;
 	_bias_dt = (FLT)0;

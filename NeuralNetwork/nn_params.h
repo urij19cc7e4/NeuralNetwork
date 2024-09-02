@@ -33,14 +33,6 @@ namespace nn_params
 		__count__
 	};
 
-	enum class nn_convo_t : uint64_t
-	{
-		many_to_many,
-		many_to_one,
-		one_to_one,
-		__count__
-	};
-
 	enum class nn_init_t : uint64_t
 	{
 		normal,
@@ -57,19 +49,19 @@ namespace nn_params
 	struct cnn_info : nn_info
 	{
 	public:
+		uint64_t count;
+		uint64_t depth;
 		uint64_t height;
 		uint64_t width;
-		uint64_t size;
 		nn_activ_t activ;
 		nn_init_t init;
 		FLT scale_x;
 		FLT scale_y;
 		FLT scale_z;
-		nn_convo_t convo;
 		bool pool;
 
-		cnn_info(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_init_t init,
-			FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool);
+		cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width,
+			nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 
 		virtual nn* create_new() const;
 	};
@@ -94,9 +86,10 @@ namespace nn_params
 	struct cnn_2_fnn_info : nn_info
 	{
 	public:
+		bool flatten;
 		bool max_pool;
 
-		cnn_2_fnn_info(bool max_pool);
+		cnn_2_fnn_info(bool flatten, bool max_pool);
 
 		virtual nn* create_new() const;
 	};

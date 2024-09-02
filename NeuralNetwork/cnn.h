@@ -19,17 +19,16 @@ private:
 	FLT _scale_y;
 	FLT _scale_z;
 
-	nn_params::nn_convo_t _convo;
 	bool _pool;
 
 public:
 	cnn() noexcept;
-	cnn(uint64_t height, uint64_t width, uint64_t size, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
-		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
+	cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
+		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 	cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
-		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool);
+		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
-		FLT scale_x, FLT scale_y, FLT scale_z, nn_params::nn_convo_t convo, bool pool) noexcept;
+		FLT scale_x, FLT scale_y, FLT scale_z, bool pool) noexcept;
 	cnn(const nn_params::cnn_info&i);
 	cnn(const cnn& o);
 	cnn(cnn&& o) noexcept;
@@ -38,13 +37,14 @@ public:
 	virtual nn*create_new() const;
 
 	inline nn_params::nn_activ_t get_activ_type() const noexcept;
-	inline nn_params::nn_convo_t get_convo_type() const noexcept;
 	inline FLT get_scale_x() const noexcept;
 	inline FLT get_scale_y() const noexcept;
 	inline FLT get_scale_z() const noexcept;
 	inline FLT get_bn_link() const noexcept;
 	inline FLT get_bn_bias() const noexcept;
 	inline bool get_pool_enabled() const noexcept;
+	inline uint64_t get_count() const noexcept;
+	inline uint64_t get_depth() const noexcept;
 	inline uint64_t get_height() const noexcept;
 	inline uint64_t get_width() const noexcept;
 	inline uint64_t get_size() const noexcept;
@@ -53,8 +53,8 @@ public:
 	inline bool is_empty() const noexcept;
 
 	virtual uint64_t get_param_count() const noexcept;
-	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev) const;
-	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev) const;
+	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out) const;
+	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out) const;
 
 	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
@@ -91,15 +91,16 @@ protected:
 	tns<FLT> _pool_temp_1;
 	tns<FLT> _pool_temp_2;
 
-	nn_params::nn_convo_t _convo;
 	bool _pool;
+	bool _drop_out;
 
 	friend class cnn;
 	friend class cnn_2_fnn;
 
 public:
 	cnn_trainy() = delete;
-	cnn_trainy(const tns<FLT>& data, const tns<FLT>& core, nn_params::nn_convo_t convo, bool pool);
+	cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t w_data,
+		uint64_t h_core, uint64_t w_core, bool pool, bool drop_out);
 	cnn_trainy(const cnn_trainy& o) = delete;
 	cnn_trainy(cnn_trainy&& o) = delete;
 	virtual ~cnn_trainy();

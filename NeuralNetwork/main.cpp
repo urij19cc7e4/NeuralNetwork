@@ -119,64 +119,6 @@ int main(int argc,char*argv[],char*argp[])
 			f(wx);
 	}*/
 
-	tns<FLT> tensor(
-		{
-			{
-				{ -45.0,  67.0, -23.0,  89.0, -12.0 },
-				{  34.0, -56.0,  78.0, -90.0,  12.0 },
-				{  23.0,  45.0, -67.0,  89.0, -34.0 },
-				{ -78.0,  90.0, -12.0,  34.0, -56.0 },
-				{  67.0, -89.0,  23.0, -45.0,  78.0 }
-			},
-			{
-				{  12.0, -34.0,  56.0, -78.0,  90.0 },
-				{ -23.0,  45.0, -67.0,  89.0, -12.0 },
-				{  34.0, -56.0,  78.0, -90.0,  23.0 },
-				{ -45.0,  67.0, -89.0,  12.0, -34.0 },
-				{  56.0, -78.0,  90.0, -23.0,  45.0 }
-			},
-			{
-				{ -67.0,  89.0, -12.0,  34.0, -56.0 },
-				{  78.0, -90.0,  23.0, -45.0,  67.0 },
-				{ -89.0,  12.0, -34.0,  56.0, -78.0 },
-				{  90.0, -23.0,  45.0, -67.0,  89.0 },
-				{ -12.0,  34.0, -56.0,  78.0, -90.0 }
-			},
-			{
-				{  23.0, -45.0,  67.0, -89.0,  12.0 },
-				{ -34.0,  56.0, -78.0,  90.0, -23.0 },
-				{  45.0, -67.0,  89.0, -12.0,  34.0 },
-				{ -56.0,  78.0, -90.0,  23.0, -45.0 },
-				{  67.0, -89.0,  12.0, -34.0,  56.0 }
-			},
-			{
-				{ -78.0,  90.0, -23.0,  45.0, -67.0 },
-				{  89.0, -12.0,  34.0, -56.0,  78.0 },
-				{ -90.0,  23.0, -45.0,  67.0, -89.0 },
-				{  12.0, -34.0,  56.0, -78.0,  90.0 },
-				{ -23.0,  45.0, -67.0,  89.0, -12.0 }
-			}
-		}
-	);
-
-
-	tns<FLT> core(
-		{
-			{
-				{ -1.0, -1.0, -1.0 },
-				{ -1.0, 10.0, -1.0 },
-				{ -1.0, -1.0, -1.0 },
-			},
-			{
-				{ 1.0,  1.0,  1.0 },
-				{ 1.0, -10.0, 1.0 },
-				{ 1.0,  1.0,  1.0 },
-			}
-		}
-	);
-
-	tns<FLT> result = arithmetic::convolute(tensor, core,nn_params::nn_convo_t::many_to_one);
-
 	/*pipe<info> pip;
 	wx_wrapper wx;
 	wx.create_graph_wnd(pip);
@@ -226,24 +168,16 @@ int main(int argc,char*argv[],char*argp[])
 	nnb network(
 		{
 			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(9, 9, 4, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, nn_params::nn_convo_t::many_to_many, false)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(9, 9, 4, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, nn_params::nn_convo_t::many_to_many, false)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(7, 7, 16, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, nn_params::nn_convo_t::one_to_one, true)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(3, 3, 16, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, nn_params::nn_convo_t::one_to_one, false)),
+				(10,1,11, 11,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_2_fnn_info(true)),
+			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_2_fnn_info(true,false)),
 
 			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::fnn_info
-				(16, 32, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::fnn_info
-				(32, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
+				(10, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
 		}
 	);
 
-	network.train_stoch_mode({ move(cyphers),move(labels),10 }, { nullptr,nullptr,0 },train_mode::NONE,0,&pip,5000,0,0,10,0.095,0.005,0.095,0.005);
+	network.train_stoch_mode({ move(cyphers),move(labels),10 }, { nullptr,nullptr,0 },train_mode::NONE,0,&pip,10000,0,0,2,0.95,0.05,0.95,0.05);
 
 	network.pass_fwd(test);
 

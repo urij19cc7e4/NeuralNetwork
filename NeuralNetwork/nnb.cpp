@@ -152,9 +152,9 @@ void nnb::train_stoch_mode
 
 		unique_ptr<unique_ptr<nn_trainy>[]>train_data(new unique_ptr<nn_trainy>[_size]);
 
-		train_data[(uint64_t)0]=move(unique_ptr<nn_trainy>(_lays[(uint64_t)0]->get_trainy((*train_set.idata[(uint64_t)0]))));
+		train_data[(uint64_t)0]=move(unique_ptr<nn_trainy>(_lays[(uint64_t)0]->get_trainy((*train_set.idata[(uint64_t)0]),false)));
 		for(uint64_t i=(uint64_t)1;i<_size;++i)
-			train_data[i]=move(unique_ptr<nn_trainy>(_lays[i]->get_trainy(*(train_data[i-(uint64_t)1]))));
+			train_data[i]=move(unique_ptr<nn_trainy>(_lays[i]->get_trainy(*(train_data[i-(uint64_t)1]),false)));
 
 		for(uint64_t i=(uint64_t)0;i<max_epochs;++i)
 		{

@@ -8,16 +8,15 @@ using namespace nn_params;
 
 cnn::cnn() noexcept
 	: _core(), _bias(), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(nn_activ_t::__count__),
-	_scale_x((FLT)1), _scale_y((FLT)1), _scale_z((FLT)1), _convo(nn_convo_t::__count__), _pool(false) {}
+	_scale_x((FLT)1), _scale_y((FLT)1), _scale_z((FLT)1), _pool(false) {}
 
-cnn::cnn(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_init_t init,
-	FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool)
-	: _core(size, height, width), _bias(size), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(activ),
-	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool)
+cnn::cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_activ_t activ, nn_init_t init,
+	FLT scale_x, FLT scale_y, FLT scale_z, bool pool) : _core(count * depth, height, width), _bias(count),
+	_bn_link((FLT)1), _bn_bias((FLT)0), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool)
 {
-	if (height == (uint64_t)0 || width == (uint64_t)0 || size == (uint64_t)0
+	if (count == (uint64_t)0 || depth == (uint64_t)0 || height == (uint64_t)0 || width == (uint64_t)0
 		|| scale_x == (FLT)0 || scale_y == (FLT)0 || scale_z == (FLT)0
-		|| convo >= nn_convo_t::__count__ || activ >= nn_activ_t::__count__ || init >= nn_init_t::__count__)
+		|| activ >= nn_activ_t::__count__ || init >= nn_init_t::__count__)
 		throw exception(error_msg::cnn_wrong_init_error);
 	else
 	{
@@ -27,11 +26,11 @@ cnn::cnn(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_in
 		switch (init)
 		{
 		case nn_init_t::normal:
-			randomizer = new rand_init<nn_init_t::normal>(height * width, height * width);
+			randomizer = (rand_init_base*)(new rand_init<nn_init_t::normal>(depth * height * width, (uint64_t)0));
 			break;
 
 		case nn_init_t::uniform:
-			randomizer = new rand_init<nn_init_t::uniform>(height * width, height * width);
+			randomizer = (rand_init_base*)(new rand_init<nn_init_t::uniform>(depth * height * width, (uint64_t)0));
 			break;
 
 		default:
@@ -48,25 +47,25 @@ cnn::cnn(uint64_t height, uint64_t width, uint64_t size, nn_activ_t activ, nn_in
 }
 
 cnn::cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias,
-	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool)
+	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, bool pool)
 	: _core(core), _bias(bias), _bn_link(bn_link), _bn_bias(bn_bias), _activ(activ),
-	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool) {}
+	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool) {}
 
 cnn::cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias,
-	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, nn_convo_t convo, bool pool) noexcept
+	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, bool pool) noexcept
 	: _core(move(core)), _bias(move(bias)), _bn_link(bn_link), _bn_bias(bn_bias), _activ(activ),
-	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _convo(convo), _pool(pool) {}
+	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool) {}
 
 cnn::cnn(const cnn_info& i)
-	: cnn(i.height, i.width, i.size, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z, i.convo, i.pool) {}
+	: cnn(i.count, i.depth, i.height, i.width, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z, i.pool) {}
 
 cnn::cnn(const cnn& o)
 	: _core(o._core), _bias(o._bias), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _activ(o._activ),
-	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _convo(o._convo), _pool(o._pool) {}
+	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _pool(o._pool) {}
 
 cnn::cnn(cnn&& o) noexcept
 	: _core(move(o._core)), _bias(move(o._bias)), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _activ(o._activ),
-	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _convo(o._convo), _pool(o._pool) {}
+	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _pool(o._pool) {}
 
 cnn::~cnn() {}
 
@@ -78,11 +77,6 @@ nn*cnn::create_new() const
 inline nn_activ_t cnn::get_activ_type() const noexcept
 {
 	return _activ;
-}
-
-inline nn_convo_t cnn::get_convo_type() const noexcept
-{
-	return _convo;
 }
 
 inline FLT cnn::get_scale_x() const noexcept
@@ -113,6 +107,16 @@ inline FLT cnn::get_bn_bias() const noexcept
 inline bool cnn::get_pool_enabled() const noexcept
 {
 	return _pool;
+}
+
+inline uint64_t cnn::get_count() const noexcept
+{
+	return _bias.get_size();
+}
+
+inline uint64_t cnn::get_depth() const noexcept
+{
+	return _core.get_size_1() / _bias.get_size();
 }
 
 inline uint64_t cnn::get_height() const noexcept
@@ -150,16 +154,18 @@ uint64_t cnn::get_param_count() const noexcept
 	return _core.get_size() + _bias.get_size();
 }
 
-nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev) const
+nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
-	return (nn_trainy*)(new cnn_trainy(cnn_data, _core, _convo, _pool));
+	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
+		cnn_data.get_size_3(), _core.get_size_2(),_core.get_size_3(), _pool, _drop_out));
 }
 
-nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev) const
+nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
-	return (nn_trainy*)(new cnn_trainy(cnn_data, _core, _convo, _pool));
+	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
+		cnn_data.get_size_3(), _core.get_size_2(), _core.get_size_3(), _pool, _drop_out));
 }
 
 ::data<FLT>*cnn::pass_fwd(const ::data<FLT>&_data) const
@@ -168,7 +174,7 @@ nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev) const
 		throw exception(error_msg::cnn_empty_error);
 	else
 	{
-		tns<FLT>*result_ptr=(tns<FLT>*)(new tns<FLT>(move(convolute((const tns<FLT>&)_data,_core,_convo))));
+		tns<FLT>*result_ptr=(tns<FLT>*)(new tns<FLT>(move(convolute((const tns<FLT>&)_data,_core))));
 		uint64_t layer_size=result_ptr->get_size_2()*result_ptr->get_size_3();
 
 		__assume(result_ptr->get_size_1() == _bias.get_size());
@@ -239,15 +245,14 @@ void cnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 	else
 	{
 		cnn_trainy& cnn_data = (cnn_trainy&)_data_prev;
-		tns<FLT> core_rot(rotate(_core));
 
 		if (cnn_data._pool)
 		{
-			convolute_bwd(((const cnn_trainy&)_data)._core_gd, core_rot, cnn_data._pool_temp_2, _convo);
+			convolute_bwd(((const cnn_trainy&)_data)._core_gd, _core, cnn_data._pool_temp_2);
 			pool_bwd(cnn_data._pool_temp_2, cnn_data._pool_map, cnn_data._core_gd);
 		}
 		else
-			convolute_bwd(((const cnn_trainy&)_data)._core_gd, core_rot, cnn_data._core_gd, _convo);
+			convolute_bwd(((const cnn_trainy&)_data)._core_gd, _core, cnn_data._core_gd);
 
 		collapse(cnn_data._core_gd, cnn_data._bias_gd);
 		cnn_data._core_gd *= cnn_data._deriv;
@@ -264,7 +269,7 @@ void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 
 		if (cnn_data._pool)
 		{
-			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._pool_temp_1, _convo);
+			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._pool_temp_1);
 			uint64_t layer_size = cnn_data._pool_temp_1.get_size_2() * cnn_data._pool_temp_1.get_size_3();
 
 			__assume(cnn_data._pool_temp_1.get_size_1() == _bias.get_size());
@@ -281,7 +286,7 @@ void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 		}
 		else
 		{
-			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._activ, _convo);
+			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._activ);
 			uint64_t layer_size = cnn_data._activ.get_size_2() * cnn_data._activ.get_size_3();
 
 			__assume(cnn_data._activ.get_size_1() == _bias.get_size());
@@ -329,7 +334,6 @@ cnn& cnn::operator=(const cnn& o)
 	_scale_x = o._scale_x;
 	_scale_y = o._scale_y;
 	_scale_z = o._scale_z;
-	_convo = o._convo;
 	_pool = o._pool;
 
 	return *this;
@@ -345,42 +349,39 @@ cnn& cnn::operator=(cnn&& o) noexcept
 	_scale_x = o._scale_x;
 	_scale_y = o._scale_y;
 	_scale_z = o._scale_z;
-	_convo = o._convo;
 	_pool = o._pool;
 
 	return *this;
 }
 
-cnn_trainy::cnn_trainy(const tns<FLT>& data, const tns<FLT>& core, nn_convo_t convo, bool pool)
-	: _activ(), _deriv(), _core_gd(), _bias_gd(), _pool_map(), _pool_temp_1(), _pool_temp_2(),
-	_core_dt(core.get_size_1(), core.get_size_2(), core.get_size_3()),
-	_core_dt_temp(core.get_size_1(), core.get_size_2(), core.get_size_3()),
-	_bias_dt(core.get_size_1()), _bias_dt_temp(core.get_size_1()),
-	_bn_link_dt((FLT)0), _bn_bias_dt((FLT)0), _bn_link_gd((FLT)0), _bn_bias_gd((FLT)0),
-	_convo(convo), _pool(pool)
+cnn_trainy::cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t w_data, uint64_t h_core, uint64_t w_core,
+	bool pool, bool drop_out) : _activ(), _deriv(), _core_gd(), _bias_gd(), _pool_map(), _pool_temp_1(), _pool_temp_2(),
+	_core_dt(count*depth, h_core, w_core), _core_dt_temp(count*depth, h_core, w_core), _bias_dt(count), _bias_dt_temp(count),
+	_bn_link_dt((FLT)0), _bn_bias_dt((FLT)0), _bn_link_gd((FLT)0), _bn_bias_gd((FLT)0), _pool(pool), _drop_out(drop_out)
 {
+	tns<FLT> data_temp(depth, h_data, w_data);
+	tns<FLT> core_temp(count * depth, h_core, w_core);
+	tns<FLT> conv_temp(move(convolute(data_temp, core_temp)));
+
 	if (pool)
 	{
-		tns<FLT> convoluted(move(convolute(data, core, convo)));
-		tns<FLT> pooled(move(arithmetic::pool(convoluted)));
+		tns<FLT> pool_temp(move(arithmetic::pool(conv_temp)));
 
-		_activ = move(tns<FLT>(pooled.get_size_1(), pooled.get_size_2(), pooled.get_size_3()));
-		_deriv = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_core_gd = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_bias_gd = move(vec<FLT>(convoluted.get_size_1()));
+		_activ = move(tns<FLT>(pool_temp.get_size_1(), pool_temp.get_size_2(), pool_temp.get_size_3()));
+		_deriv = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_core_gd = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_bias_gd = move(vec<FLT>(conv_temp.get_size_1()));
 
-		_pool_map = move(tns<uint8_t>(pooled.get_size_1(), pooled.get_size_2(), pooled.get_size_3()));
-		_pool_temp_1 = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_pool_temp_2 = move(tns<FLT>(pooled.get_size_1(), pooled.get_size_2(), pooled.get_size_3()));
+		_pool_map = move(tns<uint8_t>(pool_temp.get_size_1(), pool_temp.get_size_2(), pool_temp.get_size_3()));
+		_pool_temp_1 = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_pool_temp_2 = move(tns<FLT>(pool_temp.get_size_1(), pool_temp.get_size_2(), pool_temp.get_size_3()));
 	}
 	else
 	{
-		tns<FLT> convoluted(move(convolute(data, core, convo)));
-
-		_activ = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_deriv = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_core_gd = move(tns<FLT>(convoluted.get_size_1(), convoluted.get_size_2(), convoluted.get_size_3()));
-		_bias_gd = move(vec<FLT>(convoluted.get_size_1()));
+		_activ = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_deriv = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_core_gd = move(tns<FLT>(conv_temp.get_size_1(), conv_temp.get_size_2(), conv_temp.get_size_3()));
+		_bias_gd = move(vec<FLT>(conv_temp.get_size_1()));
 	}
 
 	_core_dt = (FLT)0;
@@ -393,12 +394,12 @@ void cnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 {
 	const tns<FLT>& input = (const tns<FLT>&)_data_prev;
 
-	convolute_rev(input, _core_gd, _core_dt_temp, _convo);
+	convolute_rev(input, _core_gd, _core_dt_temp);
 	_core_dt_temp *= speed;
 	_core_dt *= alpha;
 	_core_dt += _core_dt_temp;
 
-	convolute_rev_colla(input, _bias_gd, _bias_dt_temp, _convo);
+	convolute_rev_colla(input, _bias_gd, _bias_dt_temp);
 	_bias_dt_temp *= speed;
 	_bias_dt *= alpha;
 	_bias_dt += _bias_dt_temp;

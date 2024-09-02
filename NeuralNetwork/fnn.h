@@ -40,8 +40,8 @@ public:
 	inline bool is_empty() const noexcept;
 
 	virtual uint64_t get_param_count() const noexcept;
-	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev) const;
-	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev) const;
+	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out) const;
+	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out) const;
 
 	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
@@ -66,12 +66,14 @@ protected:
 	vec<FLT> _link_gd;
 	vec<FLT> _bias_gd;
 
+	bool _drop_out;
+
 	friend class fnn;
 	friend class cnn_2_fnn;
 
 public:
 	fnn_trainy() = delete;
-	fnn_trainy(uint64_t isize, uint64_t osize);
+	fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out);
 	fnn_trainy(const fnn_trainy& o) = delete;
 	fnn_trainy(fnn_trainy&& o) = delete;
 	virtual ~fnn_trainy();
