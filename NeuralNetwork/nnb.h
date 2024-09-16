@@ -5,6 +5,7 @@
 #include "nn.h"
 #include "cnn.h"
 #include "fnn.h"
+#include "layer_adapters.h"
 
 #include "info.h"
 #include "pipe.h"
@@ -35,7 +36,7 @@ private:
 
 public:
 	nnb() noexcept;
-	nnb(std::initializer_list<std::unique_ptr<nn_params::nn_info>> lays_info);
+	nnb(std::initializer_list<std::unique_ptr<nn_info>> lays_info);
 	nnb(const nnb& o);
 	nnb(nnb&& o) noexcept;
 	~nnb();

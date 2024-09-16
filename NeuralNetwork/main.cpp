@@ -137,11 +137,11 @@ void read_mnist(unique_ptr<::data<FLT>>* data, unique_ptr<::data<FLT>>* label, u
 			}
 
 			for (uint64_t j = (uint64_t)0; j < label[i]->get_size(); ++j)
-				(*(label[i]))(j) = (FLT)-1;
+				(*(label[i]))(j) = (FLT)-0.1;
 
 			uint8_t label_byte;
 			label_file.read((char*)&label_byte, sizeof(label_byte));
-			(*(label[i]))((uint64_t)label_byte) = (FLT)1;
+			(*(label[i]))((uint64_t)label_byte) = (FLT)0.9;
 		}
 	}
 }
@@ -190,7 +190,7 @@ int main(int argc,char*argv[],char*argp[])
 
 	read_mnist(cyphers.get(), labels.get(), 60000);
 
-	tns<FLT> test(*(tns<FLT>*)(cyphers[0]).get());
+	tns<FLT> test(*(tns<FLT>*)(cyphers[50000]).get());
 
 	pipe<info> pip;
 	wx_wrapper wx;
@@ -198,26 +198,36 @@ int main(int argc,char*argv[],char*argp[])
 
 	nnb network(
 		{
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(8,1,5, 5,nn_params::nn_activ_t::relu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(16,8,3, 3,nn_params::nn_activ_t::relu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
-				(32,16,3, 3,nn_params::nn_activ_t::relu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(2,1,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(4,2,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(8,4,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(16,8,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(32,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(48,32,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(72,48,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(108,72,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_2_fnn_info(true,false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,false)),
 
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::fnn_info
-				(288, 192, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::fnn_info
-				(192, 48, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::fnn_info
-				(48, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(432, 1024, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(1024, 96, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(96, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
 		}
 	);
 
-	network.train({ move(cyphers),move(labels),150 }, { unique_ptr<unique_ptr<::data<FLT>>[]>(&cyphers[150]),unique_ptr<unique_ptr<::data<FLT>>[]>(&labels[150]),50 },
-		train_mode::CROSS_TEST,0,&pip,0,200,20,10,1,0.95,0.95,0.00095,0.00095);
+	network.train({ move(cyphers),move(labels),50000 }, { nullptr,nullptr,0 },
+		train_mode::NONE,0,&pip,5,19200,0,0,5,0.95,0.95,0.0000495,0.0000095);
 
 	vec<FLT> *fucken_test=(vec<FLT>*)network.pass_fwd(test);
 
@@ -269,7 +279,7 @@ int main(int argc,char*argv[],char*argp[])
 
 	nnb network(
 		{
-			unique_ptr<nn_params::nn_info>((nn_params::nn_info*)new nn_params::cnn_info
+			unique_ptr<nn_info>((nn_info*)new cnn_info
 				(2, 1, 3, 3,nn_params::nn_activ_t::relu, nn_params::nn_init_t::normal, 1, 1, 1, false))
 		}
 	);

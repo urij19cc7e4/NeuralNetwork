@@ -1,10 +1,12 @@
 #pragma once
 
+#include <random>
 #include "nn.h"
 
 class cnn;
 class cnn_trainy;
 class cnn_trainy_batch;
+struct cnn_info;
 
 class cnn : public nn
 {
@@ -30,7 +32,7 @@ public:
 		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
 		FLT scale_x, FLT scale_y, FLT scale_z, bool pool) noexcept;
-	cnn(const nn_params::cnn_info&i);
+	cnn(const cnn_info&i);
 	cnn(const cnn& o);
 	cnn(cnn&& o) noexcept;
 	virtual ~cnn();
@@ -91,6 +93,10 @@ protected:
 	FLT _bn_link_gd;
 	FLT _bn_bias_gd;
 
+	std::mt19937_64 _rand_gen;
+	std::bernoulli_distribution _distributor;
+	vec<bool> _drop_map;
+
 	tns<uint8_t> _pool_map;
 	tns<FLT> _pool_temp_1;
 	tns<FLT> _pool_temp_2;
@@ -138,4 +144,24 @@ public:
 
 	virtual void update(const nn_trainy& _data, const data<FLT>& _data_prev, FLT speed);
 	virtual void update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed);
+};
+
+struct cnn_info : nn_info
+{
+public:
+	uint64_t count;
+	uint64_t depth;
+	uint64_t height;
+	uint64_t width;
+	nn_params::nn_activ_t activ;
+	nn_params::nn_init_t init;
+	FLT scale_x;
+	FLT scale_y;
+	FLT scale_z;
+	bool pool;
+
+	cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ,
+		nn_params::nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
+
+	virtual nn*create_new() const;
 };

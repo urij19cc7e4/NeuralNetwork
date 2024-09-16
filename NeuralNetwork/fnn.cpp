@@ -19,7 +19,6 @@ fnn::fnn(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT s
 	{
 		rand_init_base* randomizer = nullptr;
 
-		__assume(init < nn_init_t::__count__);
 		switch (init)
 		{
 		case nn_init_t::normal:
@@ -143,7 +142,6 @@ nn_trainy_batch* fnn::get_trainy_batch(const nn_trainy& _data_prev) const
 	{
 		vec<FLT>*result_ptr=(vec<FLT>*)(new vec<FLT>(move(multiply(_link,(const vec<FLT>&)_data))));
 
-		__assume(result_ptr->get_size() == _bias.get_size());
 		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
 			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i), _scale_x, _scale_y, _scale_z, _activ);
 
@@ -161,17 +159,21 @@ FLT fnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 		fnn_trainy& fnn_data = (fnn_trainy&)_data;
 		const vec<FLT>& res_data = (const vec<FLT>&)_data_next;
 
-		__assume(fnn_data._link_gd.get_size() == res_data.get_size());
-		__assume(fnn_data._link_gd.get_size() == fnn_data._activ.get_size());
-		__assume(fnn_data._link_gd.get_size() == fnn_data._deriv.get_size());
-		__assume(fnn_data._link_gd.get_size() == fnn_data._bias_gd.get_size());
 		for (uint64_t i = (uint64_t)0; i < fnn_data._link_gd.get_size(); ++i)
 		{
 			FLT loss = res_data(i) - fnn_data._activ(i);
+			error += loss * loss;
 
+			if(fnn_data._drop_map[i])
+			{
 			fnn_data._link_gd(i) = fnn_data._deriv(i) * loss;
 			fnn_data._bias_gd(i) = loss;
-			error += loss * loss;
+			}
+			else
+			{
+				fnn_data._link_gd(i) =(FLT)0;
+				fnn_data._bias_gd(i) =(FLT)0;
+			}
 		}
 
 		return error;
@@ -185,7 +187,7 @@ void fnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 	else
 	{
 		fnn_trainy& fnn_data = (fnn_trainy&)_data_prev;
-		multiply_bwd(_link, ((const fnn_trainy&)_data)._link_gd, fnn_data._link_gd);
+		multiply_bwd(_link,((const fnn_trainy&)_data)._link_gd,fnn_data._drop_map,fnn_data._link_gd);
 
 		fnn_data._bias_gd = fnn_data._link_gd;
 		fnn_data._link_gd *= fnn_data._deriv;
@@ -199,17 +201,29 @@ void fnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 	else
 	{
 		fnn_trainy& fnn_data = (fnn_trainy&)_data;
-		multiply_fwd(_link, (const vec<FLT>&)_data_prev, fnn_data._activ);
 
-		__assume(fnn_data._activ.get_size() == _bias.get_size());
-		__assume(fnn_data._deriv.get_size() == _bias.get_size());
+		if (fnn_data._drop_out)
+			for (uint64_t i = (uint64_t)0; i < fnn_data._drop_map.get_size(); ++i)
+				fnn_data._drop_map(i) = fnn_data._distributor(fnn_data._rand_gen);
+
+		multiply_fwd(_link,(const vec<FLT>&)_data_prev,fnn_data._drop_map,fnn_data._activ);
+
 		for (uint64_t i = (uint64_t)0; i < fnn_data._activ.get_size(); ++i)
+			if(fnn_data._drop_map(i))
 		{
 			FLT value = fnn_data._activ(i) + _bias(i);
 
 			fnn_data._activ(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
 			fnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
 		}
+			else
+			{
+				fnn_data._activ(i)=(FLT)0;
+				fnn_data._deriv(i)=(FLT)0;
+			}
+
+		if (fnn_data._drop_out)
+			fnn_data._activ *= (FLT)2.0;
 	}
 }
 
@@ -269,8 +283,11 @@ fnn& fnn::operator=(fnn&& o) noexcept
 }
 
 fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out, bool delta_hold)
-	: _activ(osize), _deriv(osize), _link_dt(), _bias_dt(), _link_gd(osize), _bias_gd(osize), _drop_out(drop_out)
+	: _activ(osize), _deriv(osize), _link_dt(), _bias_dt(), _link_gd(osize), _bias_gd(osize),
+	_rand_gen((random_device())()), _distributor((double)0.5), _drop_map(osize), _drop_out(drop_out)
 {
+	_drop_map = true;
+
 	if (delta_hold)
 	{
 		_link_dt = move(mtx<FLT>(osize, isize));
@@ -287,12 +304,8 @@ void fnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 {
 	const vec<FLT>& input = (const vec<FLT>&)_data_prev;
 
-	__assume(_link_dt.get_size_1() == _bias_dt.get_size());
-	__assume(_link_dt.get_size_1() == _link_gd.get_size());
-	__assume(_link_dt.get_size_1() == _bias_gd.get_size());
 	for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < _link_dt.get_size_1(); ++i)
 	{
-		__assume(_link_dt.get_size_2() == input.get_size());
 		for (uint64_t k = (uint64_t)0; k < _link_dt.get_size_2(); ++j, ++k)
 			_link_dt(j) = _link_dt(j) * alpha + _link_gd(i) * input(k) * speed;
 
@@ -324,12 +337,8 @@ void fnn_trainy_batch::update(const nn_trainy&_data,const ::data<FLT>& _data_pre
 	const fnn_trainy& fnn_data = (const fnn_trainy&)_data;
 	const vec<FLT>& input = (const vec<FLT>&)_data_prev;
 
-	__assume(_link_dt.get_size_1() == _bias_dt.get_size());
-	__assume(_link_dt.get_size_1() == fnn_data._link_gd.get_size());
-	__assume(_link_dt.get_size_1() == fnn_data._bias_gd.get_size());
 	for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < _link_dt.get_size_1(); ++i)
 	{
-		__assume(_link_dt.get_size_2() == input.get_size());
 		for (uint64_t k = (uint64_t)0; k < _link_dt.get_size_2(); ++j, ++k)
 			_link_dt(j) += fnn_data._link_gd(i) * input(k) * speed;
 
@@ -340,4 +349,12 @@ void fnn_trainy_batch::update(const nn_trainy&_data,const ::data<FLT>& _data_pre
 void fnn_trainy_batch::update(const nn_trainy&_data,const nn_trainy& _data_prev, FLT speed)
 {
 	update(_data,((const fnn_trainy&)_data_prev)._activ, speed);
+}
+
+fnn_info::fnn_info(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z)
+	: isize(isize), osize(osize), activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z) {}
+
+nn* fnn_info::create_new() const
+{
+	return (nn*)(new fnn(*this));
 }

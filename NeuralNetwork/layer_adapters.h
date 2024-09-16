@@ -7,6 +7,7 @@
 class cnn_2_fnn;
 class cnn_2_fnn_trainy;
 class cnn_2_fnn_trainy_batch;
+struct cnn_2_fnn_info;
 
 class cnn_2_fnn : public nn
 {
@@ -15,8 +16,8 @@ private:
 	bool _max_pool;
 
 public:
-	cnn_2_fnn(bool max_pool = false) noexcept;
-	cnn_2_fnn(const nn_params::cnn_2_fnn_info&i) noexcept;
+	cnn_2_fnn(bool flatten=true,bool max_pool=true) noexcept;
+	cnn_2_fnn(const cnn_2_fnn_info&i) noexcept;
 	cnn_2_fnn(const cnn_2_fnn& o) noexcept;
 	cnn_2_fnn(cnn_2_fnn&& o) noexcept;
 	virtual ~cnn_2_fnn();
@@ -79,4 +80,15 @@ public:
 
 	virtual void update(const nn_trainy& _data, const data<FLT>& _data_prev, FLT speed);
 	virtual void update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed);
+};
+
+struct cnn_2_fnn_info : nn_info
+{
+public:
+	bool flatten;
+	bool max_pool;
+
+	cnn_2_fnn_info(bool flatten,bool max_pool);
+
+	virtual nn*create_new() const;
 };

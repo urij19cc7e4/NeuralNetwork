@@ -161,10 +161,10 @@ void nnb::train
 			train_data = move(unique_ptr<unique_ptr<nn_trainy>[]>(new unique_ptr<nn_trainy>[_size]));
 
 			train_data[(uint64_t)0] = move(unique_ptr<nn_trainy>(
-				_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), false,true)));
+				_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), check_mode(mode, train_mode::DROP_OUT),true)));
 			for (uint64_t i = (uint64_t)1; i < _size; ++i)
 				train_data[i] = move(unique_ptr<nn_trainy>(
-					_lays[i]->get_trainy(*(train_data[i - (uint64_t)1]), false,true)));
+					_lays[i]->get_trainy(*(train_data[i - (uint64_t)1]), check_mode(mode, train_mode::DROP_OUT),true)));
 		}
 		else
 		{
@@ -180,12 +180,12 @@ void nnb::train
 			for (uint64_t i = (uint64_t)0,j=(uint64_t)0; i < batch_size; ++i)
 			{
 				train_data[j] = move(unique_ptr<nn_trainy>(
-					_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), false, true)));
+					_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), check_mode(mode, train_mode::DROP_OUT), false)));
 				++j;
 
 				for (uint64_t k = (uint64_t)1; k < _size; ++j,++k)
 					train_data[j] = move(unique_ptr<nn_trainy>(
-						_lays[k]->get_trainy(*(train_data[j - (uint64_t)1]), false, true)));
+						_lays[k]->get_trainy(*(train_data[j - (uint64_t)1]), check_mode(mode, train_mode::DROP_OUT)&&k!=_size-(uint64_t)1, false)));
 			}
 
 			train_base[(uint64_t)0] = move(unique_ptr<nn_trainy_batch>(

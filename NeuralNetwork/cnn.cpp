@@ -22,7 +22,6 @@ cnn::cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_act
 	{
 		rand_init_base* randomizer = nullptr;
 
-		__assume(init < nn_init_t::__count__);
 		switch (init)
 		{
 		case nn_init_t::normal:
@@ -191,7 +190,6 @@ nn_trainy_batch* cnn::get_trainy_batch(const nn_trainy& _data_prev) const
 		tns<FLT>*result_ptr=(tns<FLT>*)(new tns<FLT>(move(convolute((const tns<FLT>&)_data,_core))));
 		uint64_t layer_size=result_ptr->get_size_2()*result_ptr->get_size_3();
 
-		__assume(result_ptr->get_size_1() == _bias.get_size());
 		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
 			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i / layer_size), _scale_x, _scale_y, _scale_z, _activ);
 
@@ -215,14 +213,15 @@ FLT cnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 
 		if (cnn_data._pool)
 		{
-			__assume(cnn_data._pool_temp_2.get_size() == res_data.get_size());
-			__assume(cnn_data._pool_temp_2.get_size() == cnn_data._activ.get_size());
 			for (uint64_t i = (uint64_t)0; i < cnn_data._pool_temp_2.get_size(); ++i)
 			{
 				FLT loss = res_data(i) - cnn_data._activ(i);
-
-				cnn_data._pool_temp_2(i) = loss;
 				error += loss * loss;
+
+				if(cnn_data._drop_map[i/layer_size])
+				cnn_data._pool_temp_2(i) = loss;
+				else
+				cnn_data._pool_temp_2(i)=(FLT)0;
 			}
 
 			pool_bwd(cnn_data._pool_temp_2, cnn_data._pool_map, cnn_data._core_gd);
@@ -234,17 +233,18 @@ FLT cnn::train_bwd(nn_trainy& _data, const ::data<FLT>& _data_next) const
 		{
 			cnn_data._bias_gd = (FLT)0;
 
-			__assume(cnn_data._core_gd.get_size() == res_data.get_size());
-			__assume(cnn_data._core_gd.get_size() == cnn_data._activ.get_size());
-			__assume(cnn_data._core_gd.get_size() == cnn_data._deriv.get_size());
-			__assume(cnn_data._core_gd.get_size_1() == cnn_data._bias_gd.get_size());
 			for (uint64_t i = (uint64_t)0; i < cnn_data._core_gd.get_size(); ++i)
 			{
 				FLT loss = res_data(i) - cnn_data._activ(i);
-
-				cnn_data._core_gd(i) = cnn_data._deriv(i) * loss;
-				cnn_data._bias_gd(i / layer_size) += loss;
 				error += loss * loss;
+
+				if(cnn_data._drop_map[i/layer_size])
+				{
+				cnn_data._core_gd(i) = cnn_data._deriv(i) * loss;
+				cnn_data._bias_gd(i/layer_size) += loss;
+				}
+				else
+				cnn_data._core_gd(i)=(FLT)0;
 			}
 		}
 
@@ -262,11 +262,11 @@ void cnn::train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const
 
 		if (cnn_data._pool)
 		{
-			convolute_bwd(((const cnn_trainy&)_data)._core_gd, _core, cnn_data._pool_temp_2);
-			pool_bwd(cnn_data._pool_temp_2, cnn_data._pool_map, cnn_data._core_gd);
+			convolute_bwd(((const cnn_trainy&)_data)._core_gd,_core,cnn_data._drop_map,cnn_data._pool_temp_2);
+			pool_bwd(cnn_data._pool_temp_2,cnn_data._pool_map,cnn_data._core_gd);
 		}
 		else
-			convolute_bwd(((const cnn_trainy&)_data)._core_gd, _core, cnn_data._core_gd);
+			convolute_bwd(((const cnn_trainy&)_data)._core_gd,_core,cnn_data._drop_map,cnn_data._core_gd);
 
 		collapse(cnn_data._core_gd, cnn_data._bias_gd);
 		cnn_data._core_gd *= cnn_data._deriv;
@@ -281,39 +281,53 @@ void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 	{
 		cnn_trainy& cnn_data = (cnn_trainy&)_data;
 
+		if (cnn_data._drop_out)
+			for (uint64_t i = (uint64_t)0; i < cnn_data._drop_map.get_size(); ++i)
+				cnn_data._drop_map(i) = cnn_data._distributor(cnn_data._rand_gen);
+
 		if (cnn_data._pool)
 		{
-			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._pool_temp_1);
+			convolute_fwd((const tns<FLT>&)_data_prev,_core,cnn_data._drop_map,cnn_data._pool_temp_1);
 			uint64_t layer_size = cnn_data._pool_temp_1.get_size_2() * cnn_data._pool_temp_1.get_size_3();
 
-			__assume(cnn_data._pool_temp_1.get_size_1() == _bias.get_size());
-			__assume(cnn_data._deriv.get_size_1() == _bias.get_size());
 			for (uint64_t i = (uint64_t)0; i < cnn_data._pool_temp_1.get_size(); ++i)
+				if(cnn_data._drop_map(i/layer_size))
 			{
 				FLT value = cnn_data._pool_temp_1(i) + _bias(i / layer_size);
 
 				cnn_data._pool_temp_1(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
 				cnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
 			}
+				else
+				{
+					cnn_data._pool_temp_1(i)=(FLT)0;
+					cnn_data._deriv(i)=(FLT)0;
+				}
 
 			pool_fwd(cnn_data._pool_temp_1, cnn_data._pool_map, cnn_data._activ);
 		}
 		else
 		{
-			convolute_fwd((const tns<FLT>&)_data_prev, _core, cnn_data._activ);
+			convolute_fwd((const tns<FLT>&)_data_prev,_core,cnn_data._drop_map,cnn_data._activ);
 			uint64_t layer_size = cnn_data._activ.get_size_2() * cnn_data._activ.get_size_3();
 
-			__assume(cnn_data._activ.get_size_1() == _bias.get_size());
-			__assume(cnn_data._deriv.get_size_1() == _bias.get_size());
-			__assume(cnn_data._activ.get_size() == cnn_data._deriv.get_size());
 			for (uint64_t i = (uint64_t)0; i < cnn_data._activ.get_size(); ++i)
+				if(cnn_data._drop_map(i/layer_size))
 			{
 				FLT value = cnn_data._activ(i) + _bias(i / layer_size);
 
 				cnn_data._activ(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
 				cnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
 			}
+				else
+				{
+					cnn_data._activ(i)=(FLT)0;
+					cnn_data._deriv(i)=(FLT)0;
+				}
 		}
+
+		if (cnn_data._drop_out)
+			cnn_data._activ *= (FLT)2.0;
 	}
 }
 
@@ -385,13 +399,15 @@ cnn& cnn::operator=(cnn&& o) noexcept
 }
 
 cnn_trainy::cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t w_data, uint64_t h_core, uint64_t w_core,
-	bool pool, bool drop_out, bool delta_hold) : _activ(), _deriv(), _core_gd(), _bias_gd(), _pool_map(),
-	_pool_temp_1(), _pool_temp_2(), _core_dt(), _core_dt_temp(), _bias_dt(), _bias_dt_temp(),
+	bool pool, bool drop_out, bool delta_hold)
+	: _activ(), _deriv(), _core_dt(), _core_dt_temp(), _bias_dt(), _bias_dt_temp(), _core_gd(), _bias_gd(),
+	_rand_gen((random_device())()), _distributor((double)0.5), _drop_map(count), _pool_map(), _pool_temp_1(), _pool_temp_2(),
 	_bn_link_dt((FLT)0), _bn_bias_dt((FLT)0), _bn_link_gd((FLT)0), _bn_bias_gd((FLT)0), _pool(pool), _drop_out(drop_out)
 {
 	tns<FLT> data_temp(depth, h_data, w_data);
 	tns<FLT> core_temp(count * depth, h_core, w_core);
 	tns<FLT> conv_temp(move(convolute(data_temp, core_temp)));
+	_drop_map = true;
 
 	if (pool)
 	{
@@ -437,7 +453,7 @@ void cnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 	_core_dt *= alpha;
 	_core_dt += _core_dt_temp;
 
-	convolute_rev_colla(input, _bias_gd, _bias_dt_temp);
+	convolute_rev(input, _bias_gd, _bias_dt_temp);
 	_bias_dt_temp *= speed;
 	_bias_dt *= alpha;
 	_bias_dt += _bias_dt_temp;
@@ -473,7 +489,7 @@ void cnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_p
 	_core_dt_temp *= speed;
 	_core_dt += _core_dt_temp;
 
-	convolute_rev_colla(input, cnn_data._bias_gd, _bias_dt_temp);
+	convolute_rev(input, cnn_data._bias_gd, _bias_dt_temp);
 	_bias_dt_temp *= speed;
 	_bias_dt += _bias_dt_temp;
 }
@@ -481,4 +497,13 @@ void cnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_p
 void cnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed)
 {
 	update(_data,((const cnn_trainy&)_data_prev)._activ, speed);
+}
+
+cnn_info::cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_activ_t activ, nn_init_t init,
+	FLT scale_x, FLT scale_y, FLT scale_z, bool pool) : count(count), depth(depth), height(height), width(width),
+	activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z), pool(pool) {}
+
+nn* cnn_info::create_new() const
+{
+	return (nn*)(new cnn(*this));
 }

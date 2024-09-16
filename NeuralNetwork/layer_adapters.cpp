@@ -4,13 +4,13 @@ using namespace std;
 using namespace arithmetic;
 using namespace nn_params;
 
-cnn_2_fnn::cnn_2_fnn(bool max_pool) noexcept : _max_pool(max_pool) {}
+cnn_2_fnn::cnn_2_fnn(bool flatten,bool max_pool) noexcept : _flatten(flatten), _max_pool(max_pool) {}
 
-cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn_info&i) noexcept : cnn_2_fnn(i.max_pool) {}
+cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn_info&i) noexcept : cnn_2_fnn(i.flatten, i.max_pool) {}
 
-cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn& o) noexcept : _max_pool(o._max_pool) {}
+cnn_2_fnn::cnn_2_fnn(const cnn_2_fnn& o) noexcept : _flatten(o._flatten), _max_pool(o._max_pool) {}
 
-cnn_2_fnn::cnn_2_fnn(cnn_2_fnn&& o) noexcept : _max_pool(o._max_pool) {}
+cnn_2_fnn::cnn_2_fnn(cnn_2_fnn&& o) noexcept : _flatten(o._flatten), _max_pool(o._max_pool) {}
 
 cnn_2_fnn::~cnn_2_fnn() {}
 
@@ -122,10 +122,21 @@ void cnn_2_fnn::train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const
 	fnn_trainy& fnn_data = (fnn_trainy&)_data;
 
 	if(_flatten)
-		for(uint64_t i=(uint64_t)0;i<fnn_data._activ.get_size();++i)
-		fnn_data._activ(i) = (((const cnn_trainy&)_data_prev)._activ)(i);
+	{
+	uint64_t layer_size=fnn_data._drop_map.get_size()/((const cnn_trainy&)_data_prev)._drop_map.get_size();
+
+	for(uint64_t i=(uint64_t)0,j=(uint64_t)0;i<((const cnn_trainy&)_data_prev)._drop_map.get_size();++i)
+		for(uint64_t k=(uint64_t)0;k<layer_size;++j,++k)
+			fnn_data._drop_map(j)=((const cnn_trainy&)_data_prev)._drop_map(i);
+
+	for(uint64_t i=(uint64_t)0;i<fnn_data._activ.get_size();++i)
+	fnn_data._activ(i) = (((const cnn_trainy&)_data_prev)._activ)(i);
+	}
 	else
-	pool_full_fwd(((const cnn_trainy&)_data_prev)._activ, adp_data._pool_map, fnn_data._activ, adp_data._max_pool);
+	{
+	fnn_data._drop_map = ((const cnn_trainy&)_data_prev)._drop_map;
+	pool_full_fwd(((const cnn_trainy&)_data_prev)._activ, adp_data._pool_map, fnn_data._activ, _max_pool);
+	}
 }
 
 void cnn_2_fnn::train_upd(const nn_trainy& _data) {}
@@ -169,3 +180,10 @@ void cnn_2_fnn_trainy_batch::begin_update(FLT alpha) {}
 void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_prev, FLT speed) {}
 
 void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed) {}
+
+cnn_2_fnn_info::cnn_2_fnn_info(bool flatten, bool max_pool) : flatten(flatten), max_pool(max_pool) {}
+
+nn* cnn_2_fnn_info::create_new() const
+{
+	return (nn*)(new cnn_2_fnn(*this));
+}

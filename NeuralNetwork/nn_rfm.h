@@ -4,7 +4,6 @@
 #include "tns.h"
 #include "mtx.h"
 #include "vec.h"
-#include "nn_params.h"
 
 namespace arithmetic
 {
@@ -69,11 +68,12 @@ namespace arithmetic
 	}
 
 	template <typename T, bool initialize>
-	void convolute_bwd(const tns<T, initialize>&_data,const tns<T, initialize>&_core,tns<T, initialize>&_res)
+	void convolute_bwd(const tns<T, initialize>&_data,const tns<T, initialize>&_core,
+		const vec<bool, initialize>&_drop,tns<T, initialize>&_res)
 	{
-		if (_data.is_empty() || _core.is_empty() || _res.is_empty())
+		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else
+		else if(_drop.get_size()==_res.get_size_1())
 		{
 			uint64_t size_0 = _data.get_size_1();
 			uint64_t size_1 = _core.get_size_1() / _data.get_size_1();
@@ -92,6 +92,7 @@ namespace arithmetic
 
 				for (uint64_t i = (uint64_t)0; i < size_0; ++i)
 					for (uint64_t ii = (uint64_t)0; ii < size_1; ++ii)
+						if(_drop(ii))
 						for (int64_t j = (int64_t)1 - (int64_t)size_4, jj = (int64_t)0; jj < (int64_t)size_2; ++j, ++jj)
 							for (int64_t k = (int64_t)1 - (int64_t)size_5, kk = (int64_t)0; kk < (int64_t)size_3; ++k, ++kk)
 							{
@@ -107,14 +108,18 @@ namespace arithmetic
 			else
 				throw std::exception(error_msg::tns_sizes_error);
 		}
+		else
+			throw std::exception(error_msg::tns_sizes_error);
 	}
 
 	template <typename T, bool initialize>
-	void convolute_fwd(const tns<T, initialize>&_data,const tns<T, initialize>&_core,tns<T, initialize>&_res)
+	void convolute_fwd(const tns<T, initialize>&_data,const tns<T, initialize>&_core,
+		const vec<bool, initialize>&_drop,tns<T, initialize>&_res)
 	{
-		if (_data.is_empty() || _core.is_empty() || _res.is_empty())
+		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if (_data.get_size_2() >= _core.get_size_2() && _data.get_size_3() >= _core.get_size_3())
+		else if (_data.get_size_2() >= _core.get_size_2() && _data.get_size_3() >= _core.get_size_3()
+			&&_drop.get_size()==_res.get_size_1())
 		{
 			uint64_t size_0 = _data.get_size_1();
 			uint64_t size_1 = _core.get_size_1() / _data.get_size_1();
@@ -129,6 +134,7 @@ namespace arithmetic
 				_res = T(0);
 
 				for (uint64_t i = (uint64_t)0; i < size_1; ++i)
+					if(_drop(i))
 					for (uint64_t ii = (uint64_t)0; ii < size_0; ++ii)
 						for (uint64_t j = (uint64_t)0, jj = size_4; j < size_2; ++j, ++jj)
 							for (uint64_t k = (uint64_t)0, kk = size_5; k < size_3; ++k, ++kk)
@@ -186,7 +192,7 @@ namespace arithmetic
 	}
 
 	template <typename T, bool initialize>
-	void convolute_rev_colla(const tns<T, initialize>&_data,const vec<T, initialize>&_core,vec<T, initialize>&_res)
+	void convolute_rev(const tns<T, initialize>&_data,const vec<T, initialize>&_core,vec<T, initialize>&_res)
 	{
 		if (_data.is_empty() || _core.is_empty() || _res.is_empty())
 			return;
@@ -228,17 +234,20 @@ namespace arithmetic
 	}
 
 	template <typename T, bool initialize>
-	void multiply_bwd(const mtx<T, initialize>&_mtx,const vec<T, initialize>&_vec,vec<T, initialize>&_res)
+	void multiply_bwd(const mtx<T, initialize>&_mtx,const vec<T, initialize>&_vec,
+		const vec<bool, initialize>&_drop,vec<T, initialize>&_res)
 	{
-		if (_mtx.is_empty() || _vec.is_empty() || _res.is_empty())
+		if (_mtx.is_empty() || _vec.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if (_mtx.get_size_1() == _vec.get_size() && _mtx.get_size_2() == _res.get_size())
+		else if (_mtx.get_size_1() == _vec.get_size() && _mtx.get_size_2() == _res.get_size()
+			&& _drop.get_size()==_res.get_size())
 		{
 			uint64_t size_1 = _mtx.get_size_1(), size_2 = _mtx.get_size_2();
 			_res = T(0);
 
 			for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < size_1; ++i)
 				for (uint64_t k = (uint64_t)0; k < size_2; ++j, ++k)
+					if(_drop(k))
 					_res(k) += _mtx(j) * _vec(i);
 		}
 		else
@@ -246,15 +255,18 @@ namespace arithmetic
 	}
 
 	template <typename T, bool initialize>
-	void multiply_fwd(const mtx<T, initialize>&_mtx,const vec<T, initialize>&_vec,vec<T, initialize>&_res)
+	void multiply_fwd(const mtx<T, initialize>&_mtx,const vec<T, initialize>&_vec,
+		const vec<bool, initialize>&_drop,vec<T, initialize>&_res)
 	{
-		if (_mtx.is_empty() || _vec.is_empty() || _res.is_empty())
+		if (_mtx.is_empty() || _vec.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if (_mtx.get_size_2() == _vec.get_size() && _mtx.get_size_1() == _res.get_size())
+		else if (_mtx.get_size_2() == _vec.get_size() && _mtx.get_size_1() == _res.get_size()
+			&& _drop.get_size()==_res.get_size())
 		{
 			uint64_t size_1 = _mtx.get_size_1(), size_2 = _mtx.get_size_2();
 
 			for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < size_1; ++i)
+				if(_drop(i))
 			{
 				T cell(0);
 
@@ -263,6 +275,11 @@ namespace arithmetic
 
 				_res(i) = std::move(cell);
 			}
+				else
+				{
+					j+=size_2;
+					_res(i) =std::move(T(0));
+				}
 		}
 		else
 			throw std::exception(error_msg::mtx_vec_sizes_error);

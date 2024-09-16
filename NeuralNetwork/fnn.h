@@ -1,10 +1,12 @@
 #pragma once
 
+#include <random>
 #include "nn.h"
 
 class fnn;
 class fnn_trainy;
 class fnn_trainy_batch;
+struct fnn_info;
 
 class fnn : public nn
 {
@@ -23,7 +25,7 @@ public:
 		FLT scale_x, FLT scale_y, FLT scale_z);
 	fnn(const mtx<FLT>& link, const vec<FLT>& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z);
 	fnn(mtx<FLT>&& link, vec<FLT>&& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z) noexcept;
-	fnn(const nn_params::fnn_info&i);
+	fnn(const fnn_info&i);
 	fnn(const fnn& o);
 	fnn(fnn&& o) noexcept;
 	virtual ~fnn();
@@ -70,6 +72,10 @@ protected:
 	vec<FLT> _link_gd;
 	vec<FLT> _bias_gd;
 
+	std::mt19937_64 _rand_gen;
+	std::bernoulli_distribution _distributor;
+	vec<bool> _drop_map;
+
 	bool _drop_out;
 
 	friend class fnn;
@@ -106,4 +112,21 @@ public:
 
 	virtual void update(const nn_trainy& _data, const data<FLT>& _data_prev, FLT speed);
 	virtual void update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed);
+};
+
+struct fnn_info : nn_info
+{
+public:
+	uint64_t isize;
+	uint64_t osize;
+	nn_params::nn_activ_t activ;
+	nn_params::nn_init_t init;
+	FLT scale_x;
+	FLT scale_y;
+	FLT scale_z;
+
+	fnn_info(uint64_t isize, uint64_t osize, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
+		FLT scale_x, FLT scale_y, FLT scale_z);
+
+	virtual nn*create_new() const;
 };
