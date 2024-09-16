@@ -103,13 +103,14 @@ inline bool nnb::is_empty() const noexcept
 	}
 }
 
-void nnb::train_stoch_mode
+void nnb::train
 (
 	data_set train_set,
 	data_set test_set,
 	train_mode mode,
 	std::list<info>* errors,
 	pipe<info>* error_pipe,
+	uint64_t batch_size,
 	uint64_t max_epochs,
 	uint64_t max_overs,
 	uint64_t test_freq,
@@ -144,57 +145,145 @@ void nnb::train_stoch_mode
 
 		light_appx alpha_appx(alpha_start,alpha_end,max_epochs);
 		light_appx speed_appx(speed_start,speed_end,max_epochs);
-		light_appx conv_appx(max(convergence*(FLT)_size,(FLT)1),(FLT)1,max_epochs);
+		FLT speed_coef = max(convergence * (FLT)_size, (FLT)1);
 
 		unique_ptr<rand_sel_i<uint64_t>>selector=train_set.size>(uint64_t)250
 			?unique_ptr<rand_sel_i<uint64_t>>((new rand_sel<uint64_t,false>(train_set.size - (uint64_t)1, (uint64_t)0)))
 			:unique_ptr<rand_sel_i<uint64_t>>((new rand_sel<uint64_t,true>(train_set.size - (uint64_t)1, (uint64_t)0)));
+		unique_ptr<uint64_t[]> selectors;
+		unique_ptr<FLT[]> speeds;
 
-		unique_ptr<unique_ptr<nn_trainy>[]>train_data(new unique_ptr<nn_trainy>[_size]);
+		unique_ptr<unique_ptr<nn_trainy_batch>[]> train_base;
+		unique_ptr<unique_ptr<nn_trainy>[]> train_data;
 
-		train_data[(uint64_t)0]=move(unique_ptr<nn_trainy>(_lays[(uint64_t)0]->get_trainy((*train_set.idata[(uint64_t)0]),false)));
-		for(uint64_t i=(uint64_t)1;i<_size;++i)
-			train_data[i]=move(unique_ptr<nn_trainy>(_lays[i]->get_trainy(*(train_data[i-(uint64_t)1]),false)));
+		if (batch_size == (uint64_t)0)
+		{
+			train_data = move(unique_ptr<unique_ptr<nn_trainy>[]>(new unique_ptr<nn_trainy>[_size]));
+
+			train_data[(uint64_t)0] = move(unique_ptr<nn_trainy>(
+				_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), false,true)));
+			for (uint64_t i = (uint64_t)1; i < _size; ++i)
+				train_data[i] = move(unique_ptr<nn_trainy>(
+					_lays[i]->get_trainy(*(train_data[i - (uint64_t)1]), false,true)));
+		}
+		else
+		{
+			if (batch_size > train_set.size)
+				batch_size = train_set.size;
+
+			selectors = move(unique_ptr<uint64_t[]>(new uint64_t[batch_size]));
+			speeds = move(unique_ptr<FLT[]>(new FLT[_size]));
+
+			train_base = move(unique_ptr<unique_ptr<nn_trainy_batch>[]>(new unique_ptr<nn_trainy_batch>[_size]));
+			train_data = move(unique_ptr<unique_ptr<nn_trainy>[]>(new unique_ptr<nn_trainy>[_size*batch_size]));
+
+			for (uint64_t i = (uint64_t)0,j=(uint64_t)0; i < batch_size; ++i)
+			{
+				train_data[j] = move(unique_ptr<nn_trainy>(
+					_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), false, true)));
+				++j;
+
+				for (uint64_t k = (uint64_t)1; k < _size; ++j,++k)
+					train_data[j] = move(unique_ptr<nn_trainy>(
+						_lays[k]->get_trainy(*(train_data[j - (uint64_t)1]), false, true)));
+			}
+
+			train_base[(uint64_t)0] = move(unique_ptr<nn_trainy_batch>(
+				_lays[(uint64_t)0]->get_trainy_batch(*(train_set.idata[(uint64_t)0]))));
+			for (uint64_t i = (uint64_t)1; i < _size; ++i)
+				train_base[i] = move(unique_ptr<nn_trainy_batch>(
+					_lays[i]->get_trainy_batch(*(train_data[i - (uint64_t)1]))));
+		}
 
 		for(uint64_t i=(uint64_t)0;i<max_epochs;++i)
 		{
 			FLT train_err=(FLT)0,test_err=(FLT)0;
 			FLT alpha_epo=alpha_appx.forward(),speed_epo=speed_appx.forward();
 
-			light_appx speed_lay_appxer(conv_appx.forward(),speed_epo,_size,(FLT)0,(FLT)2);
+			light_appx speed_lay_appxer(speed_coef*speed_epo,speed_epo,_size,(FLT)0,(FLT)2);
 			selector->reset();
 
-			for(uint64_t j=(uint64_t)0;j<train_set.size;++j)
+			if (batch_size == (uint64_t)0)
 			{
-				uint64_t num=selector->next();
+				for (uint64_t j = (uint64_t)0; j < train_set.size; ++j)
+				{
+					uint64_t num = selector->next();
 
-				_lays[(uint64_t)0]->train_fwd(*(train_data[(uint64_t)0]),(*train_set.idata[num]));
-				for(uint64_t k=(uint64_t)1;k<_size;++k)
-					_lays[k]->train_fwd(*(train_data[k]),*(train_data[k-(uint64_t)1]));
+					_lays[(uint64_t)0]->train_fwd(*(train_data[(uint64_t)0]), *(train_set.idata[num]));
+					for (uint64_t k = (uint64_t)1; k < _size; ++k)
+						_lays[k]->train_fwd(*(train_data[k]), *(train_data[k - (uint64_t)1]));
 
-				train_err+=_lays[last_layer]->train_bwd(*(train_data[last_layer]),(*train_set.odata[num]));
-				for(uint64_t k=last_layer;k>(uint64_t)0;--k)
-					_lays[k]->train_bwd(*(train_data[k]),*(train_data[k-(uint64_t)1]));
+					train_err += _lays[last_layer]->train_bwd(*(train_data[last_layer]), *(train_set.odata[num]));
+					for (uint64_t k = last_layer; k > (uint64_t)0; --k)
+						_lays[k]->train_bwd(*(train_data[k]), *(train_data[k - (uint64_t)1]));
+
+					speed_lay_appxer.reset();
+
+					{
+						FLT speed_lay = speed_lay_appxer.forward();
+
+						train_data[(uint64_t)0]->update(*(train_set.idata[num]), alpha_epo, speed_lay);
+						_lays[(uint64_t)0]->train_upd(*(train_data[(uint64_t)0]));
+					}
+
+					for (uint64_t k = (uint64_t)1; k < _size; ++k)
+					{
+						FLT speed_lay = speed_lay_appxer.forward();
+
+						train_data[k]->update(*(train_data[k - (uint64_t)1]), alpha_epo, speed_lay);
+						_lays[k]->train_upd(*(train_data[k]));
+					}
+				}
+
+				train_err /= (FLT)train_set.size;
+			}
+			else
+			{
+				for (uint64_t num = (uint64_t)0; num < batch_size; ++num)
+					selectors[num] = selector->next();
+
+				#pragma omp parallel for reduction(+:train_err) num_threads(batch_size)
+				for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)batch_size; ++omp_thread)
+				{
+					uint64_t num = selectors[omp_thread];
+					uint64_t data_num = omp_thread * _size;
+
+					_lays[(uint64_t)0]->train_fwd(*(train_data[data_num]), *(train_set.idata[num]));
+					for (uint64_t k = (uint64_t)1; k < _size; ++k)
+						_lays[k]->train_fwd(*(train_data[data_num+k]), *(train_data[data_num+k - (uint64_t)1]));
+
+					train_err += _lays[last_layer]->train_bwd(*(train_data[data_num+last_layer]), *(train_set.odata[num]));
+					for (uint64_t k = last_layer; k > (uint64_t)0; --k)
+						_lays[k]->train_bwd(*(train_data[data_num+k]), *(train_data[data_num+k - (uint64_t)1]));
+				}
 
 				speed_lay_appxer.reset();
 
-				{
-					FLT speed_lay=speed_lay_appxer.forward();
+				for (uint64_t num = (uint64_t)0; num < _size; ++num)
+					speeds[num] = speed_lay_appxer.forward();
 
-					train_data[(uint64_t)0]->update((*train_set.idata[num]),alpha_epo,speed_lay);
-					_lays[(uint64_t)0]->train_upd(*(train_data[(uint64_t)0]));
+				#pragma omp parallel for num_threads(_size)
+				for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)_size; ++omp_thread)
+				{
+					FLT speed_lay = speeds[omp_thread]/(FLT)batch_size;
+					train_base[omp_thread]->begin_update(alpha_epo);
+
+					if (omp_thread == (int64_t)0)
+						for (uint64_t i = (uint64_t)0, j = (uint64_t)omp_thread; i < batch_size; ++i, j += _size)
+						{
+							train_base[omp_thread]->update(*(train_data[j]),*(train_set.idata[selectors[i]]), speed_lay);
+							_lays[omp_thread]->train_upd(*(train_base[omp_thread]));
+						}
+					else
+						for (uint64_t i = (uint64_t)0, j = (uint64_t)omp_thread; i < batch_size; ++i, j += _size)
+						{
+							train_base[omp_thread]->update(*(train_data[j]), *(train_data[j - (uint64_t)1]), speed_lay);
+							_lays[omp_thread]->train_upd(*(train_base[omp_thread]));
+						}
 				}
 
-				for(uint64_t k=(uint64_t)1;k<_size;++k)
-				{
-					FLT speed_lay=speed_lay_appxer.forward();
-
-					train_data[k]->update(*(train_data[k-(uint64_t)1]),alpha_epo,speed_lay);
-					_lays[k]->train_upd(*(train_data[k]));
-				}
+				train_err /= (FLT)batch_size;
 			}
-
-			train_err/=(FLT)train_set.size;
 
 			if(train_err<min_error)
 			{
@@ -208,16 +297,31 @@ void nnb::train_stoch_mode
 			{
 			if(i%test_freq==(uint64_t)0)
 			{
-				for(uint64_t j=(uint64_t)0;j<test_set.size;++j)
+				if (batch_size == (uint64_t)0)
 				{
-					unique_ptr<::data<FLT>> fwd_result(pass_fwd((*test_set.idata[j])));
-
-					for(uint64_t k=(uint64_t)0;k<fwd_result->get_size();++k)
+					#pragma omp parallel for reduction(+:test_err) num_threads(test_set.size)
+					for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)test_set.size; ++omp_thread)
 					{
-						FLT loss=(*test_set.odata[j])[k] -(*fwd_result)(k);
-						test_err+=loss*loss;
+						unique_ptr<::data<FLT>> fwd_result(pass_fwd(*(test_set.idata[(uint64_t)omp_thread])));
+
+						for (uint64_t j = (uint64_t)0; j < fwd_result->get_size(); ++j)
+						{
+							FLT loss = (*(test_set.odata[(uint64_t)omp_thread]))[j] - (*fwd_result)(j);
+							test_err += loss * loss;
+						}
 					}
 				}
+				else
+					for (uint64_t j = (uint64_t)0; j < test_set.size; ++j)
+					{
+						unique_ptr<::data<FLT>> fwd_result(pass_fwd(*(test_set.idata[j])));
+
+						for (uint64_t k = (uint64_t)0; k < fwd_result->get_size(); ++k)
+						{
+							FLT loss = (*(test_set.odata[j]))[k] - (*fwd_result)(k);
+							test_err += loss * loss;
+						}
+					}
 
 				test_err/=(FLT)test_set.size;
 				prev_test_error=test_err;

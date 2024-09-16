@@ -24,15 +24,26 @@ uint64_t cnn_2_fnn::get_param_count() const noexcept
 	return (uint64_t)0;
 }
 
-nn_trainy* cnn_2_fnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out) const
+nn_trainy* cnn_2_fnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const
 {
 	throw exception("Adapter must be between layers.");
 }
 
-nn_trainy* cnn_2_fnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out) const
+nn_trainy* cnn_2_fnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
 	return (nn_trainy*)(new cnn_2_fnn_trainy(cnn_data, _max_pool, _flatten, _drop_out));
+}
+
+nn_trainy_batch* cnn_2_fnn::get_trainy_batch(const ::data<FLT>& _data_prev) const
+{
+	throw exception("Adapter must be between layers.");
+}
+
+nn_trainy_batch* cnn_2_fnn::get_trainy_batch(const nn_trainy& _data_prev) const
+{
+	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
+	return (nn_trainy_batch*)(new cnn_2_fnn_trainy_batch(cnn_data));
 }
 
 ::data<FLT>*cnn_2_fnn::pass_fwd(const ::data<FLT>&_data) const
@@ -119,6 +130,8 @@ void cnn_2_fnn::train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const
 
 void cnn_2_fnn::train_upd(const nn_trainy& _data) {}
 
+void cnn_2_fnn::train_upd(const nn_trainy_batch& _data) {}
+
 cnn_2_fnn& cnn_2_fnn::operator=(const cnn_2_fnn& o) noexcept
 {
 	_max_pool = o._max_pool;
@@ -134,7 +147,7 @@ cnn_2_fnn& cnn_2_fnn::operator=(cnn_2_fnn&& o) noexcept
 }
 
 cnn_2_fnn_trainy::cnn_2_fnn_trainy(const tns<FLT>& data, bool max_pool, bool flatten, bool drop_out)
-	: fnn_trainy((uint64_t)0, flatten?data.get_size():data.get_size_1(), drop_out),
+	: fnn_trainy((uint64_t)0, flatten?data.get_size():data.get_size_1(), drop_out, false),
 	_pool_map(max_pool ? data.get_size_1() : (uint64_t)0),
 	_flatten(flatten), _max_pool(max_pool)
 {
@@ -146,3 +159,13 @@ cnn_2_fnn_trainy::~cnn_2_fnn_trainy() {}
 void cnn_2_fnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed) {}
 
 void cnn_2_fnn_trainy::update(const nn_trainy& _data_prev, FLT alpha, FLT speed) {}
+
+cnn_2_fnn_trainy_batch::cnn_2_fnn_trainy_batch(const tns<FLT>& data) : fnn_trainy_batch((uint64_t)0, (uint64_t)0) {}
+
+cnn_2_fnn_trainy_batch::~cnn_2_fnn_trainy_batch() {}
+
+void cnn_2_fnn_trainy_batch::begin_update(FLT alpha) {}
+
+void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_prev, FLT speed) {}
+
+void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed) {}

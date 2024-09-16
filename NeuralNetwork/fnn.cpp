@@ -115,14 +115,24 @@ uint64_t fnn::get_param_count() const noexcept
 	return _link.get_size() + _bias.get_size();
 }
 
-nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out) const
+nn_trainy* fnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const
 {
-	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out));
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out, _delta_hold));
 }
 
-nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out) const
+nn_trainy* fnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const
 {
-	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out));
+	return (nn_trainy*)(new fnn_trainy(_link.get_size_2(), _link.get_size_1(), _drop_out, _delta_hold));
+}
+
+nn_trainy_batch* fnn::get_trainy_batch(const ::data<FLT>& _data_prev) const
+{
+	return (nn_trainy_batch*)(new fnn_trainy_batch(_link.get_size_2(), _link.get_size_1()));
+}
+
+nn_trainy_batch* fnn::get_trainy_batch(const nn_trainy& _data_prev) const
+{
+	return (nn_trainy_batch*)(new fnn_trainy_batch(_link.get_size_2(), _link.get_size_1()));
 }
 
 ::data<FLT>*fnn::pass_fwd(const ::data<FLT>&_data) const
@@ -221,6 +231,19 @@ void fnn::train_upd(const nn_trainy& _data)
 	}
 }
 
+void fnn::train_upd(const nn_trainy_batch& _data)
+{
+	if (is_empty())
+		throw exception(error_msg::fnn_empty_error);
+	else
+	{
+		const fnn_trainy_batch& fnn_data = (const fnn_trainy_batch&)_data;
+
+		_link += fnn_data._link_dt;
+		_bias += fnn_data._bias_dt;
+	}
+}
+
 fnn& fnn::operator=(const fnn& o)
 {
 	_link = o._link;
@@ -245,11 +268,17 @@ fnn& fnn::operator=(fnn&& o) noexcept
 	return *this;
 }
 
-fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out)
-	: _activ(osize), _deriv(osize), _link_dt(osize, isize), _bias_dt(osize), _link_gd(osize), _bias_gd(osize), _drop_out(drop_out)
+fnn_trainy::fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out, bool delta_hold)
+	: _activ(osize), _deriv(osize), _link_dt(), _bias_dt(), _link_gd(osize), _bias_gd(osize), _drop_out(drop_out)
 {
-	_link_dt = (FLT)0;
-	_bias_dt = (FLT)0;
+	if (delta_hold)
+	{
+		_link_dt = move(mtx<FLT>(osize, isize));
+		_bias_dt = move(vec<FLT>(osize));
+
+		_link_dt = (FLT)0;
+		_bias_dt = (FLT)0;
+	}
 }
 
 fnn_trainy::~fnn_trainy() {}
@@ -274,4 +303,41 @@ void fnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 void fnn_trainy::update(const nn_trainy& _data_prev, FLT alpha, FLT speed)
 {
 	update(((const fnn_trainy&)_data_prev)._activ, alpha, speed);
+}
+
+fnn_trainy_batch::fnn_trainy_batch(uint64_t isize, uint64_t osize) : _link_dt(osize, isize), _bias_dt(osize)
+{
+	_link_dt = (FLT)0;
+	_bias_dt = (FLT)0;
+}
+
+fnn_trainy_batch::~fnn_trainy_batch() {}
+
+void fnn_trainy_batch::begin_update(FLT alpha)
+{
+	_link_dt *= alpha;
+	_bias_dt *= alpha;
+}
+
+void fnn_trainy_batch::update(const nn_trainy&_data,const ::data<FLT>& _data_prev, FLT speed)
+{
+	const fnn_trainy& fnn_data = (const fnn_trainy&)_data;
+	const vec<FLT>& input = (const vec<FLT>&)_data_prev;
+
+	__assume(_link_dt.get_size_1() == _bias_dt.get_size());
+	__assume(_link_dt.get_size_1() == fnn_data._link_gd.get_size());
+	__assume(_link_dt.get_size_1() == fnn_data._bias_gd.get_size());
+	for (uint64_t i = (uint64_t)0, j = (uint64_t)0; i < _link_dt.get_size_1(); ++i)
+	{
+		__assume(_link_dt.get_size_2() == input.get_size());
+		for (uint64_t k = (uint64_t)0; k < _link_dt.get_size_2(); ++j, ++k)
+			_link_dt(j) += fnn_data._link_gd(i) * input(k) * speed;
+
+		_bias_dt(i) += fnn_data._bias_gd(i) * speed;
+	}
+}
+
+void fnn_trainy_batch::update(const nn_trainy&_data,const nn_trainy& _data_prev, FLT speed)
+{
+	update(_data,((const fnn_trainy&)_data_prev)._activ, speed);
 }

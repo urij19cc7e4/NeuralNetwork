@@ -13,7 +13,8 @@ enum class train_mode : uint64_t
 {
 	NONE = 0x0000,
 	CROSS_TEST = 0x0001,
-	DROP_OUT = 0x0002
+	DROP_OUT = 0x0002,
+	MT = 0x0004
 };
 
 struct data_set
@@ -45,13 +46,14 @@ public:
 
 	data<FLT>* pass_fwd(const data<FLT>&_data) const;
 
-	void train_stoch_mode
+	void train
 	(
 		data_set train_set,
 		data_set test_set,
 		train_mode mode=train_mode::NONE,
 		std::list<info>*errors=nullptr,
 		pipe<info>*error_pipe=nullptr,
+		uint64_t batch_size=(uint64_t)0,
 		uint64_t max_epochs=(uint64_t)5000,
 		uint64_t max_overs=(uint64_t)25,
 		uint64_t test_freq=(uint64_t)25,

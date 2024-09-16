@@ -4,6 +4,7 @@
 
 class cnn;
 class cnn_trainy;
+class cnn_trainy_batch;
 
 class cnn : public nn
 {
@@ -23,8 +24,8 @@ private:
 
 public:
 	cnn() noexcept;
-	cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
-		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
+	cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ,
+		nn_params::nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 	cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
 		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
 	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
@@ -53,8 +54,10 @@ public:
 	inline bool is_empty() const noexcept;
 
 	virtual uint64_t get_param_count() const noexcept;
-	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out) const;
-	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out) const;
+	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const;
+	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const;
+	virtual nn_trainy_batch* get_trainy_batch(const data<FLT>& _data_prev) const;
+	virtual nn_trainy_batch* get_trainy_batch(const nn_trainy& _data_prev) const;
 
 	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
@@ -62,6 +65,7 @@ public:
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const;
 	virtual void train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const;
 	virtual void train_upd(const nn_trainy& _data);
+	virtual void train_upd(const nn_trainy_batch& _data);
 
 	cnn& operator=(const cnn& o);
 	cnn& operator=(cnn&& o) noexcept;
@@ -96,15 +100,42 @@ protected:
 
 	friend class cnn;
 	friend class cnn_2_fnn;
+	friend class cnn_trainy_batch;
 
 public:
 	cnn_trainy() = delete;
 	cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t w_data,
-		uint64_t h_core, uint64_t w_core, bool pool, bool drop_out);
+		uint64_t h_core, uint64_t w_core, bool pool, bool drop_out, bool delta_hold);
 	cnn_trainy(const cnn_trainy& o) = delete;
 	cnn_trainy(cnn_trainy&& o) = delete;
 	virtual ~cnn_trainy();
 
 	virtual void update(const data<FLT>& _data_prev, FLT alpha, FLT speed);
 	virtual void update(const nn_trainy& _data_prev, FLT alpha, FLT speed);
+};
+
+class cnn_trainy_batch : public nn_trainy_batch
+{
+protected:
+	tns<FLT> _core_dt;
+	tns<FLT> _core_dt_temp;
+	vec<FLT> _bias_dt;
+	vec<FLT> _bias_dt_temp;
+
+	FLT _bn_link_dt;
+	FLT _bn_bias_dt;
+
+	friend class cnn;
+
+public:
+	cnn_trainy_batch() = delete;
+	cnn_trainy_batch(uint64_t count, uint64_t depth, uint64_t h_core, uint64_t w_core);
+	cnn_trainy_batch(const cnn_trainy_batch& o) = delete;
+	cnn_trainy_batch(cnn_trainy_batch&& o) = delete;
+	virtual ~cnn_trainy_batch();
+
+	virtual void begin_update(FLT alpha);
+
+	virtual void update(const nn_trainy& _data, const data<FLT>& _data_prev, FLT speed);
+	virtual void update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed);
 };

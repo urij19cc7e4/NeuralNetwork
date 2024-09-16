@@ -4,6 +4,7 @@
 
 class fnn;
 class fnn_trainy;
+class fnn_trainy_batch;
 
 class fnn : public nn
 {
@@ -40,8 +41,10 @@ public:
 	inline bool is_empty() const noexcept;
 
 	virtual uint64_t get_param_count() const noexcept;
-	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out) const;
-	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out) const;
+	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const;
+	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const;
+	virtual nn_trainy_batch* get_trainy_batch(const data<FLT>& _data_prev) const;
+	virtual nn_trainy_batch* get_trainy_batch(const nn_trainy& _data_prev) const;
 
 	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const;
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const;
@@ -49,6 +52,7 @@ public:
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const;
 	virtual void train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const;
 	virtual void train_upd(const nn_trainy& _data);
+	virtual void train_upd(const nn_trainy_batch& _data);
 
 	fnn& operator=(const fnn& o);
 	fnn& operator=(fnn&& o) noexcept;
@@ -70,14 +74,36 @@ protected:
 
 	friend class fnn;
 	friend class cnn_2_fnn;
+	friend class fnn_trainy_batch;
 
 public:
 	fnn_trainy() = delete;
-	fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out);
+	fnn_trainy(uint64_t isize, uint64_t osize, bool drop_out, bool delta_hold);
 	fnn_trainy(const fnn_trainy& o) = delete;
 	fnn_trainy(fnn_trainy&& o) = delete;
 	virtual ~fnn_trainy();
 
 	virtual void update(const data<FLT>& _data_prev, FLT alpha, FLT speed);
 	virtual void update(const nn_trainy& _data_prev, FLT alpha, FLT speed);
+};
+
+class fnn_trainy_batch : public nn_trainy_batch
+{
+protected:
+	mtx<FLT> _link_dt;
+	vec<FLT> _bias_dt;
+
+	friend class fnn;
+
+public:
+	fnn_trainy_batch() = delete;
+	fnn_trainy_batch(uint64_t isize, uint64_t osize);
+	fnn_trainy_batch(const fnn_trainy_batch& o) = delete;
+	fnn_trainy_batch(fnn_trainy_batch&& o) = delete;
+	virtual ~fnn_trainy_batch();
+
+	virtual void begin_update(FLT alpha);
+
+	virtual void update(const nn_trainy& _data, const data<FLT>& _data_prev, FLT speed);
+	virtual void update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed);
 };

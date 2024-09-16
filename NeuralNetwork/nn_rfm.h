@@ -57,7 +57,7 @@ namespace arithmetic
 						{
 							uint64_t index = &result(i, j, k) - &result((uint64_t)0);
 
-							for (uint64_t m = j, ll = i * ii * size_4 * size_5; m < jj; ++m)
+							for (uint64_t m = j, ll = (i*size_0+ii)*size_4*size_5; m < jj; ++m)
 								for (uint64_t n = k; n < kk; ++n, ++ll)
 									result(index) += _data(ii, m, n) * _core(ll);
 						}
@@ -96,7 +96,7 @@ namespace arithmetic
 							for (int64_t k = (int64_t)1 - (int64_t)size_5, kk = (int64_t)0; kk < (int64_t)size_3; ++k, ++kk)
 							{
 								uint64_t index = &_res(ii, (uint64_t)jj, (uint64_t)kk) - &_res((uint64_t)0);
-								uint64_t ll = (i * ii + (uint64_t)1) * size_4 * size_5 - (uint64_t)1;
+								uint64_t ll = (i * size_1+ii + (uint64_t)1) * size_4 * size_5 - (uint64_t)1;
 
 								for (int64_t m = j; m <= jj; ++m)
 									for (int64_t n = k; n <= kk; ++n, --ll)
@@ -135,7 +135,7 @@ namespace arithmetic
 							{
 								uint64_t index = &_res(i, j, k) - &_res((uint64_t)0);
 
-								for (uint64_t m = j, ll = i * ii * size_4 * size_5; m < jj; ++m)
+								for (uint64_t m = j, ll = (i*size_0+ii)*size_4*size_5; m < jj; ++m)
 									for (uint64_t n = k; n < kk; ++n, ++ll)
 										_res(index) += _data(ii, m, n) * _core(ll);
 							}
@@ -166,15 +166,17 @@ namespace arithmetic
 
 			if (_res.get_size_1() == size_1 && _res.get_size_2() == size_2 && _res.get_size_3() == size_3)
 			{
+				_res = T(0);
+
 				for (uint64_t i = (uint64_t)0, l = (uint64_t)0; i < size_6; ++i)
 					for (uint64_t ii = (uint64_t)0; ii < size_7; ++ii)
 						for (uint64_t j = (uint64_t)0, jj = size_4; j < size_2; ++j, ++jj)
 							for (uint64_t k = (uint64_t)0, kk = size_5; k < size_3; ++k, ++kk, ++l)
 								for (uint64_t m = j, ll = i * size_4 * size_5; m < jj; ++m)
 									for (uint64_t n = k; n < kk; ++n, ++ll)
-										_res(l) = std::move(_data(ii, m, n) * _core(ll));
+										_res(l) += _data(ii, m, n) * _core(ll);
 
-				_res /= T(size_4 * size_5);
+				_res/=T(size_2*size_3*size_4*size_5);
 			}
 			else
 				throw std::exception(error_msg::tns_sizes_error);

@@ -154,18 +154,32 @@ uint64_t cnn::get_param_count() const noexcept
 	return _core.get_size() + _bias.get_size();
 }
 
-nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out) const
+nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
 	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
-		cnn_data.get_size_3(), _core.get_size_2(),_core.get_size_3(), _pool, _drop_out));
+		cnn_data.get_size_3(), _core.get_size_2(),_core.get_size_3(), _pool, _drop_out, _delta_hold));
 }
 
-nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out) const
+nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
 	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
-		cnn_data.get_size_3(), _core.get_size_2(), _core.get_size_3(), _pool, _drop_out));
+		cnn_data.get_size_3(), _core.get_size_2(), _core.get_size_3(), _pool, _drop_out, _delta_hold));
+}
+
+nn_trainy_batch* cnn::get_trainy_batch(const ::data<FLT>& _data_prev) const
+{
+	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
+	return (nn_trainy_batch*)(new cnn_trainy_batch(_bias.get_size(),
+		cnn_data.get_size_1(), _core.get_size_2(), _core.get_size_3()));
+}
+
+nn_trainy_batch* cnn::get_trainy_batch(const nn_trainy& _data_prev) const
+{
+	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
+	return (nn_trainy_batch*)(new cnn_trainy_batch(_bias.get_size(),
+		cnn_data.get_size_1(), _core.get_size_2(), _core.get_size_3()));
 }
 
 ::data<FLT>*cnn::pass_fwd(const ::data<FLT>&_data) const
@@ -324,6 +338,22 @@ void cnn::train_upd(const nn_trainy& _data)
 	}
 }
 
+void cnn::train_upd(const nn_trainy_batch& _data)
+{
+	if (is_empty())
+		throw exception(error_msg::cnn_empty_error);
+	else
+	{
+		const cnn_trainy_batch& cnn_data = (const cnn_trainy_batch&)_data;
+
+		_core += cnn_data._core_dt;
+		_bias += cnn_data._bias_dt;
+
+		_bn_link += cnn_data._bn_link_dt;
+		_bn_bias += cnn_data._bn_bias_dt;
+	}
+}
+
 cnn& cnn::operator=(const cnn& o)
 {
 	_core = o._core;
@@ -355,8 +385,8 @@ cnn& cnn::operator=(cnn&& o) noexcept
 }
 
 cnn_trainy::cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t w_data, uint64_t h_core, uint64_t w_core,
-	bool pool, bool drop_out) : _activ(), _deriv(), _core_gd(), _bias_gd(), _pool_map(), _pool_temp_1(), _pool_temp_2(),
-	_core_dt(count*depth, h_core, w_core), _core_dt_temp(count*depth, h_core, w_core), _bias_dt(count), _bias_dt_temp(count),
+	bool pool, bool drop_out, bool delta_hold) : _activ(), _deriv(), _core_gd(), _bias_gd(), _pool_map(),
+	_pool_temp_1(), _pool_temp_2(), _core_dt(), _core_dt_temp(), _bias_dt(), _bias_dt_temp(),
 	_bn_link_dt((FLT)0), _bn_bias_dt((FLT)0), _bn_link_gd((FLT)0), _bn_bias_gd((FLT)0), _pool(pool), _drop_out(drop_out)
 {
 	tns<FLT> data_temp(depth, h_data, w_data);
@@ -384,8 +414,16 @@ cnn_trainy::cnn_trainy(uint64_t count, uint64_t depth, uint64_t h_data, uint64_t
 		_bias_gd = move(vec<FLT>(conv_temp.get_size_1()));
 	}
 
-	_core_dt = (FLT)0;
-	_bias_dt = (FLT)0;
+	if (delta_hold)
+	{
+		_core_dt = move(tns<FLT>(count * depth, h_core, w_core));
+		_core_dt_temp = move(tns<FLT>(count * depth, h_core, w_core));
+		_bias_dt = move(vec<FLT>(count));
+		_bias_dt_temp = move(vec<FLT>(count));
+
+		_core_dt = (FLT)0;
+		_bias_dt = (FLT)0;
+	}
 }
 
 cnn_trainy::~cnn_trainy() {}
@@ -408,4 +446,39 @@ void cnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 void cnn_trainy::update(const nn_trainy& _data_prev, FLT alpha, FLT speed)
 {
 	update(((const cnn_trainy&)_data_prev)._activ, alpha, speed);
+}
+
+cnn_trainy_batch::cnn_trainy_batch(uint64_t count, uint64_t depth, uint64_t h_core, uint64_t w_core)
+	: _core_dt(count* depth, h_core, w_core), _core_dt_temp(count* depth, h_core, w_core),
+	_bias_dt(count), _bias_dt_temp(count), _bn_link_dt((FLT)0), _bn_bias_dt((FLT)0)
+{
+	_core_dt = (FLT)0;
+	_bias_dt = (FLT)0;
+}
+
+cnn_trainy_batch::~cnn_trainy_batch() {}
+
+void cnn_trainy_batch::begin_update(FLT alpha)
+{
+	_core_dt *= alpha;
+	_bias_dt *= alpha;
+}
+
+void cnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_prev, FLT speed)
+{
+	const cnn_trainy& cnn_data = (const cnn_trainy&)_data;
+	const tns<FLT>& input = (const tns<FLT>&)_data_prev;
+
+	convolute_rev(input, cnn_data._core_gd, _core_dt_temp);
+	_core_dt_temp *= speed;
+	_core_dt += _core_dt_temp;
+
+	convolute_rev_colla(input, cnn_data._bias_gd, _bias_dt_temp);
+	_bias_dt_temp *= speed;
+	_bias_dt += _bias_dt_temp;
+}
+
+void cnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed)
+{
+	update(_data,((const cnn_trainy&)_data_prev)._activ, speed);
 }
