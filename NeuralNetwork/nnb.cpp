@@ -1,10 +1,8 @@
 #include "nnb.h"
 
-#include <cmath>
-#include <exception>
-#include <random>
-#include <utility>
 #include <omp.h>
+#include <iomanip>
+#include <sstream>
 
 #include "light_appx.h"
 #include "rand_sel.h"
@@ -12,6 +10,22 @@
 using namespace std;
 using namespace arithmetic;
 using namespace nn_params;
+
+data_set empty_set={ vector<shared_ptr<data<FLT>>>(), vector<shared_ptr<data<FLT>>>(), (uint64_t)0 };
+
+inline train_mode operator&(const train_mode&lhs,const train_mode&rhs)
+{
+return static_cast<train_mode>(
+static_cast<underlying_type_t<train_mode>>(lhs)&
+static_cast<underlying_type_t<train_mode>>(rhs));
+}
+
+inline train_mode operator|(const train_mode&lhs,const train_mode&rhs)
+{
+return static_cast<train_mode>(
+static_cast<underlying_type_t<train_mode>>(lhs)|
+static_cast<underlying_type_t<train_mode>>(rhs));
+}
 
 inline void nnb::add_info(list<info>*data_list,pipe<info>*data_pipe,info&&value)
 {
@@ -24,40 +38,87 @@ inline void nnb::add_info(list<info>*data_list,pipe<info>*data_pipe,info&&value)
 
 inline bool nnb::check_mode(const train_mode&gen,const train_mode&tar)
 {
-	return ((uint64_t)gen&(uint64_t)tar)==(uint64_t)tar;
+	return (gen&tar)==tar;
 }
 
-nnb::nnb() noexcept : _lays(nullptr), _size((uint64_t)0) {}
+string nnb::get_header(uint64_t layers,uint64_t params)
+{
+	ostringstream header;
+
+	header<<"Neural Network Binary Train Data";
+	header<<"\r\nLayer Count: "<<setw(20)<<right<<layers;
+	header<<"\r\nParam Count: "<<setw(20)<<right<<params;
+	header<<"\r\n";
+
+	return header.str();
+}
+
+nnb::nnb() noexcept : _lays(nullptr), _size((uint64_t)0){}
 
 nnb::nnb(initializer_list<unique_ptr<nn_info>> lays_info) : _lays(nullptr), _size(lays_info.size())
 {
-	if (_size != (uint64_t)0)
-	{
-		_lays = move(unique_ptr<unique_ptr<nn>[]>(new unique_ptr<nn>[_size]()));
-		const unique_ptr<nn_info>* elems = lays_info.begin();
-
-		for (uint64_t i = (uint64_t)0; i < _size; ++i)
-			_lays[i] = move(unique_ptr<nn>(elems[i]->create_new()));
-	}
-}
-
-nnb::nnb(const nnb& o) : _lays(nullptr), _size(o._size)
+if(_size!=(uint64_t)0)
 {
-	if (_size != (uint64_t)0)
-	{
-		_lays = move(unique_ptr<unique_ptr<nn>[]>(new unique_ptr<nn>[_size]()));
+_lays=new nn*[_size];
+const unique_ptr<nn_info>*elems=lays_info.begin();
 
-		for (uint64_t i = (uint64_t)0; i < _size; ++i)
-			_lays[i] = move(unique_ptr<nn>(o._lays[i]->create_new()));
-	}
+for(uint64_t i=(uint64_t)0;i<_size;++i)
+_lays[i]=elems[i]->create_new();
+}
 }
 
-nnb::nnb(nnb&& o) noexcept : _lays(move(o._lays)), _size(o._size)
+nnb::nnb(ifstream&file) : nnb()
 {
-	o._size = (uint64_t)0;
+	string header=get_header(_size,get_param_count());
+	char*temp=new char[header.size()];
+
+	file.read(reinterpret_cast<char*>(temp),sizeof(header.c_str()[(uint64_t)0])*(uint64_t)header.size());
+	file.read(reinterpret_cast<char*>(&_size),sizeof(_size));
+
+	if(_size!=(uint64_t)0)
+	{
+		_lays=new nn*[_size];
+
+		for(uint64_t i=(uint64_t)0;i<_size;++i)
+			_lays[i]=nn::create_from_file(file);
+	}
+
+	delete[] temp;
 }
 
-nnb::~nnb() {}
+nnb::nnb(const nnb&o) : _lays(nullptr), _size(o._size)
+{
+if(o._lays!=nullptr)
+{
+_lays=new nn*[_size];
+
+for(uint64_t i=(uint64_t)0;i<_size;++i)
+_lays[i]=o._lays[i]->create_new();
+}
+}
+
+nnb::nnb(nnb&&o) noexcept : _lays(o._lays), _size(o._size)
+{
+o._lays=nullptr;
+o._size=(uint64_t)0;
+}
+
+nnb::~nnb()
+{
+if(_lays!=nullptr)
+delete[] _lays;
+}
+
+void nnb::save_to_file(ofstream&file) const
+{
+	string header=get_header(_size,get_param_count());
+
+	file.write(reinterpret_cast<const char*>(header.c_str()),sizeof(header.c_str()[(uint64_t)0])*(uint64_t)header.size());
+	file.write(reinterpret_cast<const char*>(&_size),sizeof(_size));
+
+	for(uint64_t i=(uint64_t)0;i<_size;++i)
+		_lays[i]->save_to_file(file);
+}
 
 uint64_t nnb::get_param_count() const noexcept
 {
@@ -84,7 +145,7 @@ inline bool nnb::is_empty() const noexcept
 	return _lays == nullptr;
 }
 
-::data<FLT>* nnb::pass_fwd(const ::data<FLT>&_data) const
+::data<FLT>* nnb::pass(const ::data<FLT>&_data) const
 {
 	if (is_empty())
 		throw exception(error_msg::nnb_empty_error);
@@ -92,7 +153,7 @@ inline bool nnb::is_empty() const noexcept
 	{
 		::data<FLT>*result_ptr=_lays[(uint64_t)0]->pass_fwd(_data);
 
-		for (uint64_t i = (uint64_t)1; i < _size; ++i)
+		for (uint64_t i=(uint64_t)1;i<_size;++i)
 		{
 			::data<FLT>*temp=_lays[i]->pass_fwd(*result_ptr);
 			delete result_ptr;
@@ -114,7 +175,8 @@ void nnb::train
 	uint64_t max_epochs,
 	uint64_t max_overs,
 	uint64_t test_freq,
-	FLT convergence,
+	FLT drop_out_rate,
+	FLT speed_scale,
 	FLT alpha_start,
 	FLT alpha_end,
 	FLT speed_start,
@@ -145,7 +207,7 @@ void nnb::train
 
 		light_appx alpha_appx(alpha_start,alpha_end,max_epochs);
 		light_appx speed_appx(speed_start,speed_end,max_epochs);
-		FLT speed_coef = max(convergence * (FLT)_size, (FLT)1);
+		FLT speed_coef = max(speed_scale * (FLT)_size, (FLT)1);
 
 		unique_ptr<rand_sel_i<uint64_t>>selector=train_set.size>(uint64_t)250
 			?unique_ptr<rand_sel_i<uint64_t>>((new rand_sel<uint64_t,false>(train_set.size - (uint64_t)1, (uint64_t)0)))
@@ -302,7 +364,7 @@ void nnb::train
 					#pragma omp parallel for reduction(+:test_err) num_threads(test_set.size)
 					for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)test_set.size; ++omp_thread)
 					{
-						unique_ptr<::data<FLT>> fwd_result(pass_fwd(*(test_set.idata[(uint64_t)omp_thread])));
+						unique_ptr<::data<FLT>> fwd_result(pass(*(test_set.idata[(uint64_t)omp_thread])));
 
 						for (uint64_t j = (uint64_t)0; j < fwd_result->get_size(); ++j)
 						{
@@ -314,7 +376,7 @@ void nnb::train
 				else
 					for (uint64_t j = (uint64_t)0; j < test_set.size; ++j)
 					{
-						unique_ptr<::data<FLT>> fwd_result(pass_fwd(*(test_set.idata[j])));
+						unique_ptr<::data<FLT>> fwd_result(pass(*(test_set.idata[j])));
 
 						for (uint64_t k = (uint64_t)0; k < fwd_result->get_size(); ++k)
 						{
@@ -352,31 +414,38 @@ void nnb::train
 	}
 }
 
-nnb& nnb::operator=(const nnb& o)
+nnb&nnb::operator=(const nnb&o)
 {
-	if (o.is_empty())
-	{
-		_lays = nullptr;
-		_size = (uint64_t)0;
-	}
-	else
-	{
-		_lays = move(unique_ptr<unique_ptr<nn>[]>(new unique_ptr<nn>[o._size]()));
-		_size = o._size;
+if(_lays!=nullptr)
+delete[] _lays;
 
-		for (uint64_t i = (uint64_t)0; i < _size; ++i)
-			_lays[i] = move(unique_ptr<nn>(o._lays[i]->create_new()));
-	}
+if(o._lays==nullptr)
+{
+_lays=nullptr;
+_size=(uint64_t)0;
+}
+else
+{
+_lays=new nn*[o._size];
+_size=o._size;
 
-	return *this;
+for(uint64_t i=(uint64_t)0;i<_size;++i)
+_lays[i]=o._lays[i]->create_new();
 }
 
-nnb& nnb::operator=(nnb&& o) noexcept
+return *this;
+}
+
+nnb&nnb::operator=(nnb&&o) noexcept
 {
-	_lays = move(o._lays);
-	_size = o._size;
+if(_lays!=nullptr)
+delete[] _lays;
 
-	o._size = (uint64_t)0;
+_lays=o._lays;
+_size=o._size;
 
-	return *this;
+o._lays=nullptr;
+o._size=(uint64_t)0;
+
+return *this;
 }

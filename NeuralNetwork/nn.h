@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include "nn_params.h"
 #include "nn_rfm.h"
 
@@ -11,19 +12,26 @@ struct nn_info;
 class nn
 {
 public:
-	virtual nn* create_new() const=0;
+	static nn* create_from_file(std::ifstream& file);
+	virtual void save_to_file(std::ofstream& file) const = 0;
+
+	virtual nn* create_new() const = 0;
 	virtual uint64_t get_param_count() const noexcept = 0;
 
-	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, bool _drop_out, bool _delta_hold) const = 0;
-	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, bool _drop_out, bool _delta_hold) const = 0;
+	virtual nn_trainy* get_trainy(const data<FLT>& _data_prev, double _drop_out, bool _delta_hold) const = 0;
+	virtual nn_trainy* get_trainy(const nn_trainy& _data_prev, double _drop_out, bool _delta_hold) const = 0;
+
 	virtual nn_trainy_batch* get_trainy_batch(const data<FLT>& _data_prev) const = 0;
 	virtual nn_trainy_batch* get_trainy_batch(const nn_trainy& _data_prev) const = 0;
 
-	virtual data<FLT>*pass_fwd(const data<FLT>&_data) const=0;
+	virtual data<FLT>* pass_fwd(const data<FLT>& _data) const = 0;
+
 	virtual FLT train_bwd(nn_trainy& _data, const data<FLT>& _data_next) const = 0;
 	virtual void train_bwd(const nn_trainy& _data, nn_trainy& _data_prev) const = 0;
+
 	virtual void train_fwd(nn_trainy& _data, const data<FLT>& _data_prev) const = 0;
 	virtual void train_fwd(nn_trainy& _data, const nn_trainy& _data_prev) const = 0;
+
 	virtual void train_upd(const nn_trainy& _data) = 0;
 	virtual void train_upd(const nn_trainy_batch& _data) = 0;
 };
@@ -47,5 +55,16 @@ public:
 struct nn_info
 {
 public:
-	virtual nn*create_new() const = 0;
+	virtual nn* create_new() const = 0;
+};
+
+enum class adapter_id : uint64_t
+{
+	CNN_2_FNN = 0x1000000000000000
+};
+
+enum class layer_id : uint64_t
+{
+	CNN = 0x0000000000000000,
+	FNN
 };

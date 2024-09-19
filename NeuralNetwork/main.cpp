@@ -93,10 +93,10 @@ using namespace std;
 
 #include "light_appx.h"
 
-void read_mnist(unique_ptr<::data<FLT>>* data, unique_ptr<::data<FLT>>* label, uint64_t count)
+void read_mnist(unique_ptr<::data<FLT>>* data, unique_ptr<::data<FLT>>* label, uint64_t count, std::string path)
 {
-	ifstream data_file(R"(C:\Users\Urij\Downloads\train-images.idx3-ubyte)", ios::binary);
-	ifstream label_file(R"(C:\Users\Urij\Downloads\train-labels.idx1-ubyte)", ios::binary);
+	ifstream data_file(path+"images.idx3-ubyte", ios::binary);
+	ifstream label_file(path+"labels.idx1-ubyte", ios::binary);
 
 	int32_t _data, _label;
 
@@ -133,7 +133,7 @@ void read_mnist(unique_ptr<::data<FLT>>* data, unique_ptr<::data<FLT>>* label, u
 			{
 				uint8_t data_byte=0;
 				data_file.read((char*)&data_byte, sizeof(data_byte));
-				(*(data[i]))(j) = (FLT)data_byte/(FLT)255;
+				(*(data[i]))(j) = data_byte>(uint8_t)127?(FLT)1.0:(FLT)0.0;
 			}
 
 			for (uint64_t j = (uint64_t)0; j < label[i]->get_size(); ++j)
@@ -188,15 +188,17 @@ int main(int argc,char*argv[],char*argp[])
 	unique_ptr<unique_ptr<::data<FLT>>[]> cyphers((unique_ptr<::data<FLT>>*)new unique_ptr<tns<FLT>>[60000]());
 	unique_ptr<unique_ptr<::data<FLT>>[]> labels((unique_ptr<::data<FLT>>*)new unique_ptr<vec<FLT>>[60000]());
 
-	read_mnist(cyphers.get(), labels.get(), 60000);
+	unique_ptr<unique_ptr<::data<FLT>>[]> cyphers_test((unique_ptr<::data<FLT>>*)new unique_ptr<tns<FLT>>[10000]());
+	unique_ptr<unique_ptr<::data<FLT>>[]> labels_test((unique_ptr<::data<FLT>>*)new unique_ptr<vec<FLT>>[10000]());
 
-	tns<FLT> test(*(tns<FLT>*)(cyphers[50000]).get());
+	read_mnist(cyphers.get(), labels.get(), 60000, R"(C:\Users\Urij\Downloads\train-)");
+	read_mnist(cyphers_test.get(), labels_test.get(), 10000, R"(C:\Users\Urij\Downloads\t10k-)");
 
 	pipe<info> pip;
 	wx_wrapper wx;
 	wx.create_graph_wnd(pip);
 
-	nnb network(
+	/*nnb network(
 		{
 			unique_ptr<nn_info>((nn_info*)new cnn_info
 				(2,1,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
@@ -205,34 +207,79 @@ int main(int argc,char*argv[],char*argp[])
 			unique_ptr<nn_info>((nn_info*)new cnn_info
 				(8,4,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(16,8,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(16,8,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(32,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+				(32,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(48,32,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+				(64,32,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(72,48,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+				(128,64,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(108,72,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+				(256,128,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(512,256,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
 
 			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,false)),
 
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(432, 1024, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(512, 1096, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(1024, 96, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(1096, 96, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
 				(96, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
 		}
+	);*/
+
+	nnb network(
+		{
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(16,1,7, 7,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(16,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(32,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(64,32,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+
+			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,false)),
+
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(576, 384, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(384, 80, nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1)),
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(80, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
+		}
 	);
 
-	network.train({ move(cyphers),move(labels),50000 }, { nullptr,nullptr,0 },
-		train_mode::NONE,0,&pip,5,19200,0,0,5,0.95,0.95,0.0000495,0.0000095);
+	cout << network.get_param_count();
+	network.train({ move(cyphers),move(labels),60000 }, { move(cyphers_test),move(labels_test),100 },
+		train_mode::CROSS_TEST,0,&pip,5,4800,400,100,10,0.95,0.95,0.0000995,0.0000095);
 
-	vec<FLT> *fucken_test=(vec<FLT>*)network.pass_fwd(test);
+	unique_ptr<unique_ptr<::data<FLT>>[]> cyphers_test_1((unique_ptr<::data<FLT>>*)new unique_ptr<tns<FLT>>[10000]());
+	unique_ptr<unique_ptr<::data<FLT>>[]> labels_test_1((unique_ptr<::data<FLT>>*)new unique_ptr<vec<FLT>>[10000]());
 
-	for (int i = 0; i < fucken_test->get_size(); ++i)
-		cout << std::fixed << std::setprecision(4)<< (*fucken_test)[i] << "\t";
+	read_mnist(cyphers_test_1.get(), labels_test_1.get(), 10000, R"(C:\Users\Urij\Downloads\t10k-)");
+	uint64_t counter = 0;
+	for (int i = 0; i < 10000; ++i)
+	{
+		vec<FLT>* result = (vec<FLT>*)network.pass(*(cyphers_test_1[i]));
+
+		FLT max = (*result)(0);
+		int max_i = 0;
+
+		for (int j = 1; j < 10; ++j)
+			if (max < (*result)(j))
+			{
+				max = (*result)(j);
+				max_i = j;
+			}
+
+		if ((*(labels_test_1[i]))(max_i) == (FLT)0.9)
+			++counter;
+	}
+
+	cout <<"\n" << (FLT)counter / 10000.0;
 
 	/*unique_ptr<unique_ptr<::data<FLT>>[]> i_data((unique_ptr<::data<FLT>>*)new unique_ptr<tns<FLT>>[2]());
 	unique_ptr<unique_ptr<::data<FLT>>[]> o_data((unique_ptr<::data<FLT>>*)new unique_ptr<tns<FLT>>[2]());

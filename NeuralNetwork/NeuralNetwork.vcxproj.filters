@@ -42,10 +42,10 @@
     <ClCompile Include="nn_params.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="nn_trainer.cpp">
+    <ClCompile Include="cnn_2_fnn.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="layer_adapters.cpp">
+    <ClCompile Include="nn.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
@@ -104,16 +104,13 @@
     <ClInclude Include="nn.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="nn_trainer.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="rand_init.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="nnb.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="layer_adapters.h">
+    <ClInclude Include="cnn_2_fnn.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
