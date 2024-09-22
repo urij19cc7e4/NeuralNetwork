@@ -61,7 +61,7 @@ cnn::cnn(ifstream& file) : cnn()
 	uint64_t depth;
 	uint64_t height;
 	uint64_t width;
-	nn_activ_t activ;
+	uint64_t activ;
 	double scale_x;
 	double scale_y;
 	double scale_z;
@@ -80,7 +80,7 @@ cnn::cnn(ifstream& file) : cnn()
 	_core = move(tns<FLT>(count * depth, height, width));
 	_bias = move(vec<FLT>(count));
 
-	_activ = activ;
+	_activ = (nn_activ_t)activ;
 	_scale_x = (FLT)scale_x;
 	_scale_y = (FLT)scale_y;
 	_scale_z = (FLT)scale_z;
@@ -126,7 +126,7 @@ void cnn::save_to_file(ofstream& file) const
 	uint64_t depth = get_depth();
 	uint64_t height = get_height();
 	uint64_t width = get_width();
-	nn_activ_t activ = get_activ_type();
+	uint64_t activ = (uint64_t)get_activ_type();
 	double scale_x = (double)get_scale_x();
 	double scale_y = (double)get_scale_y();
 	double scale_z = (double)get_scale_z();
@@ -235,15 +235,15 @@ uint64_t cnn::get_param_count() const noexcept
 nn_trainy* cnn::get_trainy(const ::data<FLT>& _data_prev, double _drop_out, bool _delta_hold) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)_data_prev;
-	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
-		cnn_data.get_size_3(), _core.get_size_2(), _core.get_size_3(), _pool, _drop_out, _delta_hold));
+	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), _core.get_size_2(),
+		_core.get_size_3(), cnn_data.get_size_2(), cnn_data.get_size_3(), _pool, _drop_out, _delta_hold));
 }
 
 nn_trainy* cnn::get_trainy(const nn_trainy& _data_prev, double _drop_out, bool _delta_hold) const
 {
 	const tns<FLT>& cnn_data = (const tns<FLT>&)(((const cnn_trainy&)_data_prev)._activ);
-	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), cnn_data.get_size_2(),
-		cnn_data.get_size_3(), _core.get_size_2(), _core.get_size_3(), _pool, _drop_out, _delta_hold));
+	return (nn_trainy*)(new cnn_trainy(_bias.get_size(), cnn_data.get_size_1(), _core.get_size_2(),
+		_core.get_size_3(), cnn_data.get_size_2(), cnn_data.get_size_3(), _pool, _drop_out, _delta_hold));
 }
 
 nn_trainy_batch* cnn::get_trainy_batch(const ::data<FLT>& _data_prev) const

@@ -60,8 +60,8 @@ public:
 
 	rand_init(uint64_t isize, uint64_t osize)
 		: rand_init_base(), _distributor(
-			sqrt(((FLT)6) / (FLT)(isize + osize))* ((FLT)-1),
-			sqrt(((FLT)6) / (FLT)(isize + osize))* ((FLT)1)) {}
+			sqrt(((FLT)6) / (FLT)(isize + osize)) * ((FLT)-1),
+			sqrt(((FLT)6) / (FLT)(isize + osize)) * ((FLT)1)) {}
 
 	rand_init(const rand_init& o) = delete;
 

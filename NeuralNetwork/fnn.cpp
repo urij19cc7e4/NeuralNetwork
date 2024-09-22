@@ -52,7 +52,7 @@ fnn::fnn(ifstream& file) : fnn()
 {
 	uint64_t isize;
 	uint64_t osize;
-	nn_activ_t activ;
+	uint64_t activ;
 	double scale_x;
 	double scale_y;
 	double scale_z;
@@ -67,7 +67,7 @@ fnn::fnn(ifstream& file) : fnn()
 	_link = move(mtx<FLT>(osize, isize));
 	_bias = move(vec<FLT>(osize));
 
-	_activ = activ;
+	_activ = (nn_activ_t)activ;
 	_scale_x = (FLT)scale_x;
 	_scale_y = (FLT)scale_y;
 	_scale_z = (FLT)scale_z;
@@ -99,7 +99,7 @@ void fnn::save_to_file(ofstream& file) const
 
 	uint64_t isize = get_isize();
 	uint64_t osize = get_osize();
-	nn_activ_t activ = get_activ_type();
+	uint64_t activ = (uint64_t)get_activ_type();
 	double scale_x = (double)get_scale_x();
 	double scale_y = (double)get_scale_y();
 	double scale_z = (double)get_scale_z();
