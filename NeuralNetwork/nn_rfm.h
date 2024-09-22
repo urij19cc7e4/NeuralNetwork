@@ -35,31 +35,39 @@ namespace arithmetic
 	{
 		if (_data.is_empty() || _core.is_empty())
 			return tns<T, initialize>();
-		else if (_data.get_size_2() >= _core.get_size_2() && _data.get_size_3() >= _core.get_size_3()
+		else if (_core.get_size_2()%(uint64_t)2==(uint64_t)1&&_core.get_size_3()%(uint64_t)2==(uint64_t)1
 			&& _core.get_size_1() % _data.get_size_1() == (uint64_t)0)
 		{
-			uint64_t size_0 = _data.get_size_1();
-			uint64_t size_1 = _core.get_size_1() / _data.get_size_1();
-			uint64_t size_2 = _data.get_size_2() - _core.get_size_2() + (uint64_t)1;
-			uint64_t size_3 = _data.get_size_3() - _core.get_size_3() + (uint64_t)1;
+			int64_t pad_2=(int64_t)_core.get_size_2()/(int64_t)2;
+			int64_t pad_3=(int64_t)_core.get_size_3()/(int64_t)2;
+			uint64_t core_wt=_core.get_size_2()*_core.get_size_3();
 
-			uint64_t size_4 = _core.get_size_2();
-			uint64_t size_5 = _core.get_size_3();
+			tns<T, initialize> result(_core.get_size_1()/_data.get_size_1(),_data.get_size_2(),_data.get_size_3());
+			result=T(0);
 
-			tns<T, initialize> result(size_1, size_2, size_3);
-			result = T(0);
+				for (uint64_t i = (uint64_t)0; i < result.get_size_1(); ++i)
+					for (uint64_t ii = (uint64_t)0; ii < _data.get_size_1(); ++ii)
+						for (int64_t j = (int64_t)0; j < (int64_t)result.get_size_2(); ++j)
+							for (int64_t k = (int64_t)0; k < (int64_t)result.get_size_3(); ++k)
+							{
+								T cell(0);
+								uint64_t data_wt=(uint64_t)0;
+								uint64_t l=(i*_data.get_size_1()+ii)*_core.get_size_2()*_core.get_size_3();
 
-			for (uint64_t i = (uint64_t)0; i < size_1; ++i)
-				for (uint64_t ii = (uint64_t)0; ii < size_0; ++ii)
-					for (uint64_t j = (uint64_t)0, jj = size_4; j < size_2; ++j, ++jj)
-						for (uint64_t k = (uint64_t)0, kk = size_5; k < size_3; ++k, ++kk)
-						{
-							uint64_t index = &result(i, j, k) - &result((uint64_t)0);
+								for(int64_t m=j-pad_2;m<=j+pad_2;++m)
+									for(int64_t n=k-pad_3;n<=k+pad_3;++n,++l)
+										if(m>=(int64_t)0&&m<(int64_t)_data.get_size_2()
+											&&n>=(int64_t)0&&n<(int64_t)_data.get_size_3())
+										{
+											cell+=_data(ii,(uint64_t)m,(uint64_t)n)*_core(l);
+											++data_wt;
+										}
 
-							for (uint64_t m = j, ll = (i*size_0+ii)*size_4*size_5; m < jj; ++m)
-								for (uint64_t n = k; n < kk; ++n, ++ll)
-									result(index) += _data(ii, m, n) * _core(ll);
-						}
+								if(core_wt!=data_wt)
+									cell*=T(core_wt)/T(data_wt);
+
+								result(i,(uint64_t)j,(uint64_t)k)+=cell;
+							}
 
 			return result;
 		}
@@ -73,40 +81,40 @@ namespace arithmetic
 	{
 		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if(_drop.get_size()==_res.get_size_1())
+		else if(_data.get_size_2() == _res.get_size_2() && _data.get_size_3() == _res.get_size_3()
+			&&_core.get_size_2()%(uint64_t)2==(uint64_t)1&&_core.get_size_3()%(uint64_t)2==(uint64_t)1
+			&&_core.get_size_1()==_data.get_size_1()*_res.get_size_1()&&_drop.get_size()==_res.get_size_1())
 		{
-			uint64_t size_0 = _data.get_size_1();
-			uint64_t size_1 = _core.get_size_1() / _data.get_size_1();
-			uint64_t size_2 = _data.get_size_2() + _core.get_size_2() - (uint64_t)1;
-			uint64_t size_3 = _data.get_size_3() + _core.get_size_3() - (uint64_t)1;
+			int64_t pad_2=(int64_t)_core.get_size_2()/(int64_t)2;
+			int64_t pad_3=(int64_t)_core.get_size_3()/(int64_t)2;
+			uint64_t core_wt=_core.get_size_2()*_core.get_size_3();
 
-			uint64_t size_4 = _core.get_size_2();
-			uint64_t size_5 = _core.get_size_3();
-
-			int64_t size_6 = (int64_t)_data.get_size_2();
-			int64_t size_7 = (int64_t)_data.get_size_3();
-
-			if (_res.get_size_1() == size_1 && _res.get_size_2() == size_2 && _res.get_size_3() == size_3)
-			{
 				_res = T(0);
 
-				for (uint64_t i = (uint64_t)0; i < size_0; ++i)
-					for (uint64_t ii = (uint64_t)0; ii < size_1; ++ii)
-						if(_drop(ii))
-						for (int64_t j = (int64_t)1 - (int64_t)size_4, jj = (int64_t)0; jj < (int64_t)size_2; ++j, ++jj)
-							for (int64_t k = (int64_t)1 - (int64_t)size_5, kk = (int64_t)0; kk < (int64_t)size_3; ++k, ++kk)
+				for (uint64_t ii = (uint64_t)0; ii < _data.get_size_1(); ++ii)
+					for (uint64_t i = (uint64_t)0; i < _res.get_size_1(); ++i)
+						if(_drop(i))
+						for (int64_t j = (int64_t)0; j < (int64_t)_res.get_size_2(); ++j)
+							for (int64_t k = (int64_t)0; k < (int64_t)_res.get_size_3(); ++k)
 							{
-								uint64_t index = &_res(ii, (uint64_t)jj, (uint64_t)kk) - &_res((uint64_t)0);
-								uint64_t ll = (i * size_1+ii + (uint64_t)1) * size_4 * size_5 - (uint64_t)1;
+								T cell(0);
+								uint64_t data_wt=(uint64_t)0;
+								uint64_t l=(ii*_res.get_size_1()+i+(uint64_t)1)*_core.get_size_2()*_core.get_size_3()-(uint64_t)1;
 
-								for (int64_t m = j; m <= jj; ++m)
-									for (int64_t n = k; n <= kk; ++n, --ll)
-										if (m >= (int64_t)0 && m < size_6 && n >= (int64_t)0 && n < size_7)
-										_res(index) += _data(i, (uint64_t)m, (uint64_t)n) * _core(ll);
+								for(int64_t m=j-pad_2;m<=j+pad_2;++m)
+									for(int64_t n=k-pad_3;n<=k+pad_3;++n,--l)
+										if(m>=(int64_t)0&&m<(int64_t)_data.get_size_2()
+											&&n>=(int64_t)0&&n<(int64_t)_data.get_size_3())
+										{
+											cell+=_data(ii,(uint64_t)m,(uint64_t)n)*_core(l);
+											++data_wt;
+										}
+
+								if(core_wt!=data_wt)
+									cell*=T(core_wt)/T(data_wt);
+
+								_res(i,(uint64_t)j,(uint64_t)k)+=cell;
 							}
-			}
-			else
-				throw std::exception(error_msg::tns_sizes_error);
 		}
 		else
 			throw std::exception(error_msg::tns_sizes_error);
@@ -118,93 +126,96 @@ namespace arithmetic
 	{
 		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if (_data.get_size_2() >= _core.get_size_2() && _data.get_size_3() >= _core.get_size_3()
-			&&_drop.get_size()==_res.get_size_1())
+		else if (_data.get_size_2() == _res.get_size_2() && _data.get_size_3() == _res.get_size_3()
+			&&_core.get_size_2()%(uint64_t)2==(uint64_t)1&&_core.get_size_3()%(uint64_t)2==(uint64_t)1
+			&&_core.get_size_1()==_data.get_size_1()*_res.get_size_1()&&_drop.get_size()==_res.get_size_1())
 		{
-			uint64_t size_0 = _data.get_size_1();
-			uint64_t size_1 = _core.get_size_1() / _data.get_size_1();
-			uint64_t size_2 = _data.get_size_2() - _core.get_size_2() + (uint64_t)1;
-			uint64_t size_3 = _data.get_size_3() - _core.get_size_3() + (uint64_t)1;
+			int64_t pad_2=(int64_t)_core.get_size_2()/(int64_t)2;
+			int64_t pad_3=(int64_t)_core.get_size_3()/(int64_t)2;
+			uint64_t core_wt=_core.get_size_2()*_core.get_size_3();
 
-			uint64_t size_4 = _core.get_size_2();
-			uint64_t size_5 = _core.get_size_3();
-
-			if (_res.get_size_1() == size_1 && _res.get_size_2() == size_2 && _res.get_size_3() == size_3)
-			{
 				_res = T(0);
 
-				for (uint64_t i = (uint64_t)0; i < size_1; ++i)
+				for (uint64_t i = (uint64_t)0; i < _res.get_size_1(); ++i)
 					if(_drop(i))
-					for (uint64_t ii = (uint64_t)0; ii < size_0; ++ii)
-						for (uint64_t j = (uint64_t)0, jj = size_4; j < size_2; ++j, ++jj)
-							for (uint64_t k = (uint64_t)0, kk = size_5; k < size_3; ++k, ++kk)
+					for (uint64_t ii = (uint64_t)0; ii < _data.get_size_1(); ++ii)
+						for (int64_t j = (int64_t)0; j < (int64_t)_res.get_size_2(); ++j)
+							for (int64_t k = (int64_t)0; k < (int64_t)_res.get_size_3(); ++k)
 							{
-								uint64_t index = &_res(i, j, k) - &_res((uint64_t)0);
+								T cell(0);
+								uint64_t data_wt=(uint64_t)0;
+								uint64_t l=(i*_data.get_size_1()+ii)*_core.get_size_2()*_core.get_size_3();
 
-								for (uint64_t m = j, ll = (i*size_0+ii)*size_4*size_5; m < jj; ++m)
-									for (uint64_t n = k; n < kk; ++n, ++ll)
-										_res(index) += _data(ii, m, n) * _core(ll);
+								for(int64_t m=j-pad_2;m<=j+pad_2;++m)
+									for(int64_t n=k-pad_3;n<=k+pad_3;++n,++l)
+										if(m>=(int64_t)0&&m<(int64_t)_data.get_size_2()
+											&&n>=(int64_t)0&&n<(int64_t)_data.get_size_3())
+										{
+											cell+=_data(ii,(uint64_t)m,(uint64_t)n)*_core(l);
+											++data_wt;
+										}
+
+								if(core_wt!=data_wt)
+									cell*=T(core_wt)/T(data_wt);
+
+								_res(i,(uint64_t)j,(uint64_t)k)+=cell;
 							}
-			}
-			else
-				throw std::exception(error_msg::tns_sizes_error);
 		}
 		else
 			throw std::exception(error_msg::tns_sizes_error);
 	}
 
 	template <typename T, bool initialize>
-	void convolute_rev(const tns<T, initialize>&_data,const tns<T, initialize>&_core,tns<T, initialize>&_res)
+	void convolute_rev(const tns<T, initialize>&_data,const tns<T, initialize>&_core,
+		const vec<bool, initialize>&_drop,tns<T, initialize>&_res)
 	{
-		if (_data.is_empty() || _core.is_empty() || _res.is_empty())
+		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else if (_data.get_size_2() >= _core.get_size_2() && _data.get_size_3() >= _core.get_size_3())
+		else if (_data.get_size_2()==_core.get_size_2()&&_data.get_size_3()==_core.get_size_3()
+			&&_res.get_size_2()%(uint64_t)2==(uint64_t)1&&_res.get_size_3()%(uint64_t)2==(uint64_t)1
+			&&_res.get_size_1()==_data.get_size_1()*_core.get_size_1()&&_drop.get_size()==_core.get_size_1())
 		{
-			uint64_t size_1 = _data.get_size_1() * _core.get_size_1();
-			uint64_t size_2 = _data.get_size_2() - _core.get_size_2() + (uint64_t)1;
-			uint64_t size_3 = _data.get_size_3() - _core.get_size_3() + (uint64_t)1;
+			int64_t pad_2=(int64_t)_res.get_size_2()/(int64_t)2;
+			int64_t pad_3=(int64_t)_res.get_size_3()/(int64_t)2;
 
-			uint64_t size_4 = _core.get_size_2();
-			uint64_t size_5 = _core.get_size_3();
-			
-			uint64_t size_6 = _core.get_size_1();
-			uint64_t size_7 = _data.get_size_1();
+				for (uint64_t i = (uint64_t)0,l=(uint64_t)0; i < _core.get_size_1(); ++i)
+					if(_drop(i))
+					for (uint64_t ii = (uint64_t)0; ii < _data.get_size_1(); ++ii)
+						for (int64_t j = (int64_t)0; j < (int64_t)_res.get_size_2(); ++j)
+							for (int64_t k = (int64_t)0; k < (int64_t)_res.get_size_3(); ++k,++l)
+							{
+								T cell(0);
+								uint64_t data_wt=(uint64_t)0;
+								uint64_t ll=i*_core.get_size_2()*_core.get_size_3();
 
-			if (_res.get_size_1() == size_1 && _res.get_size_2() == size_2 && _res.get_size_3() == size_3)
-			{
-				_res = T(0);
+								for(int64_t m=j-pad_2;m<(int64_t)_data.get_size_2()+j-pad_2;++m)
+									for(int64_t n=k-pad_3;n<(int64_t)_data.get_size_3()+k-pad_3;++n,++ll)
+										if(m>=(int64_t)0&&m<(int64_t)_data.get_size_2()
+											&&n>=(int64_t)0&&n<(int64_t)_data.get_size_3())
+										{
+											cell+=_data(ii,(uint64_t)m,(uint64_t)n)*_core(ll);
+											++data_wt;
+										}
 
-				for (uint64_t i = (uint64_t)0, l = (uint64_t)0; i < size_6; ++i)
-					for (uint64_t ii = (uint64_t)0; ii < size_7; ++ii)
-						for (uint64_t j = (uint64_t)0, jj = size_4; j < size_2; ++j, ++jj)
-							for (uint64_t k = (uint64_t)0, kk = size_5; k < size_3; ++k, ++kk, ++l)
-								for (uint64_t m = j, ll = i * size_4 * size_5; m < jj; ++m)
-									for (uint64_t n = k; n < kk; ++n, ++ll)
-										_res(l) += _data(ii, m, n) * _core(ll);
-
-				_res/=T(size_2*size_3*size_4*size_5);
-			}
-			else
-				throw std::exception(error_msg::tns_sizes_error);
+								_res(l)=cell/T(data_wt);
+							}
+					else
+						l+=_data.get_size_1()*_res.get_size_2()*_res.get_size_3();
 		}
 		else
 			throw std::exception(error_msg::tns_sizes_error);
 	}
 
 	template <typename T, bool initialize>
-	void convolute_rev(const tns<T, initialize>&_data,const vec<T, initialize>&_core,vec<T, initialize>&_res)
+	void convolute_rev(const tns<T, initialize>&_data,const vec<T, initialize>&_core,
+		const vec<bool, initialize>&_drop,vec<T, initialize>&_res)
 	{
-		if (_data.is_empty() || _core.is_empty() || _res.is_empty())
+		if (_data.is_empty() || _core.is_empty() || _drop.is_empty() || _res.is_empty())
 			return;
-		else
-		{
-			uint64_t size = _core.get_size();
-
-			if (_res.get_size() == size)
-				_res = _core;
+		else if (_core.get_size()==_res.get_size())
+				_res=_core;
 			else
 				throw std::exception(error_msg::vec_sizes_error);
-		}
 	}
 
 	template <typename T, bool initialize>

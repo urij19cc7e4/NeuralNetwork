@@ -528,12 +528,12 @@ void cnn_trainy::update(const ::data<FLT>& _data_prev, FLT alpha, FLT speed)
 {
 	const tns<FLT>& input_data = (const tns<FLT>&)_data_prev;
 
-	convolute_rev(input_data, _core_gd, _core_dt_temp);
+	convolute_rev(input_data, _core_gd, _drop_map, _core_dt_temp);
 	_core_dt_temp *= speed;
 	_core_dt *= alpha;
 	_core_dt += _core_dt_temp;
 
-	convolute_rev(input_data, _bias_gd, _bias_dt_temp);
+	convolute_rev(input_data, _bias_gd, _drop_map, _bias_dt_temp);
 	_bias_dt_temp *= speed;
 	_bias_dt *= alpha;
 	_bias_dt += _bias_dt_temp;
@@ -565,11 +565,11 @@ void cnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _data_p
 	const cnn_trainy& cnn_data = (const cnn_trainy&)_data;
 	const tns<FLT>& input_data = (const tns<FLT>&)_data_prev;
 
-	convolute_rev(input_data, cnn_data._core_gd, _core_dt_temp);
+	convolute_rev(input_data, cnn_data._core_gd, cnn_data._drop_map, _core_dt_temp);
 	_core_dt_temp *= speed;
 	_core_dt += _core_dt_temp;
 
-	convolute_rev(input_data, cnn_data._bias_gd, _bias_dt_temp);
+	convolute_rev(input_data, cnn_data._bias_gd, cnn_data._drop_map, _bias_dt_temp);
 	_bias_dt_temp *= speed;
 	_bias_dt += _bias_dt_temp;
 }

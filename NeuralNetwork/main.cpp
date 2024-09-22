@@ -126,12 +126,12 @@ void read_mnist(vector<shared_ptr<::data<FLT>>>& idata, vector<shared_ptr<::data
 
 		for (uint64_t i = (uint64_t)0; i < count; ++i)
 		{
-			idata.push_back(move((shared_ptr<::data<FLT>>)(new tns<FLT>((uint64_t)1, height+20, width+20))));
+			idata.push_back(move((shared_ptr<::data<FLT>>)(new tns<FLT>((uint64_t)1, height+4, width+4))));
 			odata.push_back(move((shared_ptr<::data<FLT>>)(new vec<FLT>((uint64_t)10))));
 
 			for (uint64_t j = (uint64_t)0; j < idata[i]->get_size(); ++j)
 			{
-				if(j/(height+20)>=10&&j/(height+20)<38&&j%(width+20)>=10&&j%(width+20)<38)
+				if(j/(height+4)>=2&&j/(height+4)<30&&j%(width+4)>=2&&j%(width+4)<30)
 				{
 				uint8_t data_byte=0;
 				data_file.read((char*)&data_byte, sizeof(data_byte));
@@ -242,24 +242,44 @@ int main(int argc,char*argv[],char*argp[])
 	nnb network(
 		{
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(5,1,5, 5,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(8,1,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(10,5,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(16,8,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+			unique_ptr<nn_info>((nn_info*)new cnn_info
+				(20,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
 
-			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,false)),
+			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,true)),
 
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(1000, 512, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(320, 640, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(512, 96, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(640, 120, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(96, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
+				(120, 24, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
+			unique_ptr<nn_info>((nn_info*)new fnn_info
+				(24, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
 		}
 	);
 
+	list<phase> phase_list;
+
+	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
+		32, 25, 1050, 0.02, 8, 0.975, 0.975, 0.00000025, 0.00000025, 25.0, 1e-9)));
+	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
+		16, 25, 1450, 0.02, 8, 0.975, 0.975, 0.0000005, 0.0000005, 25.0, 1e-9)));
+	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
+		8, 25, 25000, 0.01, 16, 0.975, 0.975, 0.0000095, 0.0000025, 25.0, 1e-9)));
+	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST,
+		4, 50, 15000, 0.00, 10, 0.925, 0.925, 0.0000025, 0.0000015, 75.0, 1e-9)));
+	phase_list.push_back(move(phase(train_mode::STOCHASTIC | train_mode::CROSS_TEST,
+		2, 75, 7500, 0.00, 10, 0.925, 0.925, 0.0000015, 0.0000005, 975.0, 1e-9)));
+
 	cout << network.get_param_count();
-	network.train(train_data, test_data, train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
-		0, 0, &pip, 5, 100, 2000, 400, 100, 0.01, 10, 0.95, 0.95, 0.0000195, 0.0000095);
+	network.train(train_data, test_data, train_mode::NONE, &phase_list, 0, &pip);
+
+	ofstream my_file("my_network_2.dat", ios_base::binary);
+	network.save_to_file(my_file);
+	my_file.close();
 
 	uint64_t counter = 0;
 	for (int i = 0; i < 10000; ++i)
@@ -394,45 +414,54 @@ int main(int argc,char*argv[],char*argp[])
 //
 //tns<FLT> gradient_tensor = {
 //	{
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-//		{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 },
+//		{ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 }
 //	},
 //	{
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0},
-//		{2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0}
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 },
+//		{ 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 }
 //	},
 //	{
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0},
-//		{3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0}
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 },
+//		{ 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 }
 //	}
 //};
 //
+//vec<bool> drop({ true, true, true });
+//vec<bool> drop_2({ true, true });
+//
 //tns<FLT> res = arithmetic::convolute(input_tensor, core_tensor);
-//tns<FLT> res_2(3, 7, 7);
-//arithmetic::convolute_fwd(input_tensor, core_tensor, res_2);
+//tns<FLT> res_2(3, 9, 9);
+//arithmetic::convolute_fwd(input_tensor, core_tensor, drop, res_2);
 //
 //tns<FLT> grad_input(2, 9, 9);
 //tns<FLT> delta_core(6, 3, 3);
 //
-//arithmetic::convolute_bwd(gradient_tensor, core_tensor, grad_input);
-//arithmetic::convolute_rev(input_tensor, gradient_tensor, delta_core);
+//arithmetic::convolute_bwd(gradient_tensor, core_tensor, drop_2, grad_input);
+//arithmetic::convolute_rev(input_tensor, gradient_tensor, drop, delta_core);
 //
-//delta_core *= (FLT)441;
+//delta_core *= (FLT)81;
 
 	getchar();
 }
