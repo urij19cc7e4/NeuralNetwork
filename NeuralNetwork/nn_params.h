@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-typedef double FLT;
+typedef float FLT;
 
 namespace nn_params
 {
@@ -38,9 +38,33 @@ namespace nn_params
 		__count__
 	};
 
-	extern FLT (*activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT);
-	extern FLT (*derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT);
+	struct nn_activ_params
+	{
+	public:
+		nn_activ_t activ_type;
 
-	extern inline FLT activation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ);
-	extern inline FLT derivation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ);
+		FLT scale_x;
+		FLT scale_y;
+		FLT shift_x;
+		FLT shift_y;
+
+		nn_activ_params() = delete;
+		nn_activ_params
+		(
+			nn_activ_t activ_type,
+			FLT scale_x = (FLT)1,
+			FLT scale_y = (FLT)1,
+			FLT shift_x = (FLT)0,
+			FLT shift_y = (FLT)0
+		) noexcept;
+		nn_activ_params(const nn_activ_params& o) = default;
+		nn_activ_params(nn_activ_params&& o) = default;
+		~nn_activ_params() = default;
+	};
+
+	extern FLT (*activs[(uint64_t)nn_activ_t::__count__])(FLT);
+	extern FLT (*derivs[(uint64_t)nn_activ_t::__count__])(FLT);
+
+	extern inline FLT activation(FLT x, const nn_activ_params& params);
+	extern inline FLT derivation(FLT x, const nn_activ_params& params);
 }

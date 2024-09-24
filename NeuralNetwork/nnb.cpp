@@ -46,7 +46,7 @@ phase::phase
 	FLT speed_end,
 	FLT max_error,
 	FLT min_error
-) :
+) noexcept :
 	mode(mode),
 	train_batch_size(train_batch_size),
 	test_batch_size(test_batch_size),
@@ -366,7 +366,7 @@ void nnb::train
 
 							train_data[j] = move(unique_ptr<nn_trainy>(
 								_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), drop_out_rate, false)
-								));
+							));
 
 							++j;
 						}
@@ -377,17 +377,17 @@ void nnb::train
 
 							train_data[j] = move(unique_ptr<nn_trainy>(
 								_lays[k]->get_trainy(*(train_data[j - (uint64_t)1]), drop_out_rate, false)
-								));
+							));
 						}
 					}
 
 					train_base[(uint64_t)0] = move(unique_ptr<nn_trainy_batch>(
 						_lays[(uint64_t)0]->get_trainy_batch(*(train_set.idata[(uint64_t)0]))
-						));
+					));
 					for (uint64_t i = (uint64_t)1; i < _size; ++i)
 						train_base[i] = move(unique_ptr<nn_trainy_batch>(
 							_lays[i]->get_trainy_batch(*(train_data[i - (uint64_t)1]))
-							));
+						));
 
 					for (uint64_t i = (uint64_t)0; i < ph.epoch_count; ++i, ++epoch_count)
 					{
@@ -397,6 +397,10 @@ void nnb::train
 
 						for (uint64_t j = (uint64_t)0; j < _size; ++j)
 							speed_scale_vals[j] = speed_scale_appx.forward();
+
+					#pragma omp parallel for num_threads(_size)
+						for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)_size; ++omp_thread)
+							train_base[(uint64_t)omp_thread]->begin_update(alpha_epo);
 
 						for (uint64_t j = (uint64_t)0; j < cycle_count; ++j)
 						{
@@ -424,26 +428,23 @@ void nnb::train
 							for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)_size; ++omp_thread)
 							{
 								FLT speed_lay = speed_scale_vals[(uint64_t)omp_thread] / (FLT)copy_left;
-								train_base[(uint64_t)omp_thread]->begin_update(alpha_epo);
 
 								if (omp_thread == (int64_t)0)
 									for (uint64_t i = (uint64_t)0, j = (uint64_t)omp_thread; i < copy_left; ++i, j += _size)
-									{
 										train_base[(uint64_t)omp_thread]->update(
 											*(train_data[j]), *(train_set.idata[set_nums[i]]), speed_lay
 										);
-										_lays[(uint64_t)omp_thread]->train_upd(*(train_base[(uint64_t)omp_thread]));
-									}
 								else
 									for (uint64_t i = (uint64_t)0, j = (uint64_t)omp_thread; i < copy_left; ++i, j += _size)
-									{
 										train_base[(uint64_t)omp_thread]->update(
 											*(train_data[j]), *(train_data[j - (uint64_t)1]), speed_lay
 										);
-										_lays[(uint64_t)omp_thread]->train_upd(*(train_base[(uint64_t)omp_thread]));
-									}
 							}
 						}
+
+					#pragma omp parallel for num_threads(_size)
+						for (int64_t omp_thread = (int64_t)0; omp_thread < (int64_t)_size; ++omp_thread)
+							_lays[(uint64_t)omp_thread]->train_upd(*(train_base[(uint64_t)omp_thread]));
 
 						train_err /= (FLT)ph.train_batch_size;
 
@@ -514,7 +515,7 @@ void nnb::train
 
 						train_data[(uint64_t)0] = move(unique_ptr<nn_trainy>(
 							_lays[(uint64_t)0]->get_trainy(*(train_set.idata[(uint64_t)0]), drop_out_rate, true)
-							));
+						));
 					}
 					for (uint64_t i = (uint64_t)1; i < _size; ++i)
 					{
@@ -523,7 +524,7 @@ void nnb::train
 
 						train_data[i] = move(unique_ptr<nn_trainy>(
 							_lays[i]->get_trainy(*(train_data[i - (uint64_t)1]), drop_out_rate, true)
-							));
+						));
 					}
 
 					for (uint64_t i = (uint64_t)0; i < ph.epoch_count; ++i, ++epoch_count)

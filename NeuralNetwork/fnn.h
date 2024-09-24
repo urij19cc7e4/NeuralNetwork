@@ -14,17 +14,13 @@ private:
 	mtx<FLT> _link;
 	vec<FLT> _bias;
 
-	nn_params::nn_activ_t _activ;
-	FLT _scale_x;
-	FLT _scale_y;
-	FLT _scale_z;
+	nn_params::nn_activ_params _params;
 
 public:
 	fnn() noexcept;
-	fnn(uint64_t isize, uint64_t osize, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
-		FLT scale_x, FLT scale_y, FLT scale_z);
-	fnn(const mtx<FLT>& link, const vec<FLT>& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z);
-	fnn(mtx<FLT>&& link, vec<FLT>&& bias, nn_params::nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z) noexcept;
+	fnn(uint64_t isize, uint64_t osize, const nn_params::nn_activ_params& params, nn_params::nn_init_t init);
+	fnn(const mtx<FLT>& link, const vec<FLT>& bias, const nn_params::nn_activ_params& params);
+	fnn(mtx<FLT>&& link, vec<FLT>&& bias, const nn_params::nn_activ_params& params) noexcept;
 	fnn(std::ifstream& file);
 	fnn(const fnn_info& i);
 	fnn(const fnn& o);
@@ -34,11 +30,7 @@ public:
 	virtual nn* create_new() const;
 	virtual void save_to_file(std::ofstream& file) const;
 
-	inline nn_params::nn_activ_t get_activ_type() const noexcept;
-
-	inline FLT get_scale_x() const noexcept;
-	inline FLT get_scale_y() const noexcept;
-	inline FLT get_scale_z() const noexcept;
+	inline const nn_params::nn_activ_params& get_activ_params() const noexcept;
 
 	inline uint64_t get_isize() const noexcept;
 	inline uint64_t get_osize() const noexcept;
@@ -129,15 +121,12 @@ struct fnn_info : nn_info
 public:
 	uint64_t isize;
 	uint64_t osize;
-	nn_params::nn_activ_t activ;
+	nn_params::nn_activ_params params;
 	nn_params::nn_init_t init;
-	FLT scale_x;
-	FLT scale_y;
-	FLT scale_z;
 
 	fnn_info() = delete;
-	fnn_info(uint64_t isize, uint64_t osize, nn_params::nn_activ_t activ, nn_params::nn_init_t init,
-		FLT scale_x, FLT scale_y, FLT scale_z);
+	fnn_info(uint64_t isize, uint64_t osize,
+		const nn_params::nn_activ_params& params, nn_params::nn_init_t init) noexcept;
 	fnn_info(const fnn_info& o) = default;
 	fnn_info(fnn_info&& o) = default;
 	~fnn_info() = default;

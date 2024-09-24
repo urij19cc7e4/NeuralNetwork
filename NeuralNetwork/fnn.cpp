@@ -7,13 +7,14 @@ using namespace arithmetic;
 using namespace nn_params;
 
 fnn::fnn() noexcept
-	: _link(), _bias(), _activ(nn_activ_t::__count__), _scale_x((FLT)1), _scale_y((FLT)1), _scale_z((FLT)1) {}
+	: _link(), _bias(), _params(nn_activ_t::__count__)
+{}
 
-fnn::fnn(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z)
-	: _link(osize, isize), _bias(osize), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z)
+fnn::fnn(uint64_t isize, uint64_t osize, const nn_activ_params& params, nn_init_t init)
+	: _link(osize, isize), _bias(osize), _params(params)
 {
-	if (isize == (uint64_t)0 || osize == (uint64_t)0 || scale_x == (FLT)0 || scale_y == (FLT)0 || scale_z == (FLT)0
-		|| activ >= nn_activ_t::__count__ || init >= nn_init_t::__count__)
+	if (isize == (uint64_t)0 || osize == (uint64_t)0 || init >= nn_init_t::__count__
+		|| params.activ_type >= nn_activ_t::__count__ || params.scale_x == (FLT)0 || params.scale_y == (FLT)0)
 		throw exception(error_msg::fnn_wrong_init_error);
 	else
 	{
@@ -42,48 +43,48 @@ fnn::fnn(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT s
 	}
 }
 
-fnn::fnn(const mtx<FLT>& link, const vec<FLT>& bias, nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z)
-	: _link(link), _bias(bias), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z) {}
+fnn::fnn(const mtx<FLT>& link, const vec<FLT>& bias, const nn_activ_params& params)
+	: _link(link), _bias(bias), _params(params)
+{}
 
-fnn::fnn(mtx<FLT>&& link, vec<FLT>&& bias, nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z) noexcept
-	: _link(move(link)), _bias(move(bias)), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z) {}
+fnn::fnn(mtx<FLT>&& link, vec<FLT>&& bias, const nn_activ_params& params) noexcept
+	: _link(move(link)), _bias(move(bias)), _params(params)
+{}
 
 fnn::fnn(ifstream& file) : fnn()
 {
 	uint64_t isize;
 	uint64_t osize;
-	uint64_t activ;
-	double scale_x;
-	double scale_y;
-	double scale_z;
+	nn_activ_params params(nn_activ_t::__count__);
 
 	file.read(reinterpret_cast<char*>(&isize), sizeof(isize));
 	file.read(reinterpret_cast<char*>(&osize), sizeof(osize));
-	file.read(reinterpret_cast<char*>(&activ), sizeof(activ));
-	file.read(reinterpret_cast<char*>(&scale_x), sizeof(scale_x));
-	file.read(reinterpret_cast<char*>(&scale_y), sizeof(scale_y));
-	file.read(reinterpret_cast<char*>(&scale_z), sizeof(scale_z));
+	file.read(reinterpret_cast<char*>(&params), sizeof(params));
 
 	_link = move(mtx<FLT>(osize, isize));
 	_bias = move(vec<FLT>(osize));
 
-	_activ = (nn_activ_t)activ;
-	_scale_x = (FLT)scale_x;
-	_scale_y = (FLT)scale_y;
-	_scale_z = (FLT)scale_z;
+	_params.activ_type = params.activ_type;
+	_params.scale_x = params.scale_x;
+	_params.scale_y = params.scale_y;
+	_params.shift_x = params.shift_x;
+	_params.shift_y = params.shift_y;
 
 	file.read(reinterpret_cast<char*>(&_link((uint64_t)0)), sizeof(_link((uint64_t)0)) * _link.get_size());
 	file.read(reinterpret_cast<char*>(&_bias((uint64_t)0)), sizeof(_bias((uint64_t)0)) * _bias.get_size());
 }
 
 fnn::fnn(const fnn_info& i)
-	: fnn(i.isize, i.osize, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z) {}
+	: fnn(i.isize, i.osize, i.params, i.init)
+{}
 
 fnn::fnn(const fnn& o)
-	: _link(o._link), _bias(o._bias), _activ(o._activ), _scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z) {}
+	: _link(o._link), _bias(o._bias), _params(o._params)
+{}
 
 fnn::fnn(fnn&& o) noexcept
-	: _link(move(o._link)), _bias(move(o._bias)), _activ(o._activ), _scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z) {}
+	: _link(move(o._link)), _bias(move(o._bias)), _params(o._params)
+{}
 
 fnn::~fnn() {}
 
@@ -97,42 +98,21 @@ void fnn::save_to_file(ofstream& file) const
 	const uint64_t id = (uint64_t)layer_id::FNN;
 	file.write(reinterpret_cast<const char*>(&id), sizeof(id));
 
-	uint64_t isize = get_isize();
-	uint64_t osize = get_osize();
-	uint64_t activ = (uint64_t)get_activ_type();
-	double scale_x = (double)get_scale_x();
-	double scale_y = (double)get_scale_y();
-	double scale_z = (double)get_scale_z();
+	uint64_t isize(get_isize());
+	uint64_t osize(get_osize());
+	nn_activ_params params(get_activ_params());
 
 	file.write(reinterpret_cast<const char*>(&isize), sizeof(isize));
 	file.write(reinterpret_cast<const char*>(&osize), sizeof(osize));
-	file.write(reinterpret_cast<const char*>(&activ), sizeof(activ));
-	file.write(reinterpret_cast<const char*>(&scale_x), sizeof(scale_x));
-	file.write(reinterpret_cast<const char*>(&scale_y), sizeof(scale_y));
-	file.write(reinterpret_cast<const char*>(&scale_z), sizeof(scale_z));
+	file.write(reinterpret_cast<const char*>(&params), sizeof(params));
 
 	file.write(reinterpret_cast<const char*>(&_link((uint64_t)0)), sizeof(_link((uint64_t)0)) * _link.get_size());
 	file.write(reinterpret_cast<const char*>(&_bias((uint64_t)0)), sizeof(_bias((uint64_t)0)) * _bias.get_size());
 }
 
-inline nn_activ_t fnn::get_activ_type() const noexcept
+inline const nn_params::nn_activ_params& fnn::get_activ_params() const noexcept
 {
-	return _activ;
-}
-
-inline FLT fnn::get_scale_x() const noexcept
-{
-	return _scale_x;
-}
-
-inline FLT fnn::get_scale_y() const noexcept
-{
-	return _scale_y;
-}
-
-inline FLT fnn::get_scale_z() const noexcept
-{
-	return _scale_z;
+	return _params;
 }
 
 inline uint64_t fnn::get_isize() const noexcept
@@ -194,7 +174,7 @@ nn_trainy_batch* fnn::get_trainy_batch(const nn_trainy& _data_prev) const
 		vec<FLT>* result_ptr = (vec<FLT>*)(new vec<FLT>(move(multiply(_link, (const vec<FLT>&)_data))));
 
 		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
-			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i), _scale_x, _scale_y, _scale_z, _activ);
+			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i), _params);
 
 		return (::data<FLT>*)result_ptr;
 	}
@@ -264,8 +244,8 @@ void fnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 			{
 				FLT value = fnn_data._activ(i) + _bias(i);
 
-				fnn_data._activ(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
-				fnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
+				fnn_data._activ(i) = activation(value, _params);
+				fnn_data._deriv(i) = derivation(value, _params);
 			}
 			else
 			{
@@ -313,10 +293,12 @@ fnn& fnn::operator=(const fnn& o)
 {
 	_link = o._link;
 	_bias = o._bias;
-	_activ = o._activ;
-	_scale_x = o._scale_x;
-	_scale_y = o._scale_y;
-	_scale_z = o._scale_z;
+
+	_params.activ_type = o._params.activ_type;
+	_params.scale_x = o._params.scale_x;
+	_params.scale_y = o._params.scale_y;
+	_params.shift_x = o._params.shift_x;
+	_params.shift_y = o._params.shift_y;
 
 	return *this;
 }
@@ -325,10 +307,12 @@ fnn& fnn::operator=(fnn&& o) noexcept
 {
 	_link = move(o._link);
 	_bias = move(o._bias);
-	_activ = o._activ;
-	_scale_x = o._scale_x;
-	_scale_y = o._scale_y;
-	_scale_z = o._scale_z;
+
+	_params.activ_type = o._params.activ_type;
+	_params.scale_x = o._params.scale_x;
+	_params.scale_y = o._params.scale_y;
+	_params.shift_x = o._params.shift_x;
+	_params.shift_y = o._params.shift_y;
 
 	return *this;
 }
@@ -402,8 +386,9 @@ void fnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_pre
 	update(_data, ((const fnn_trainy&)_data_prev)._activ, speed);
 }
 
-fnn_info::fnn_info(uint64_t isize, uint64_t osize, nn_activ_t activ, nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z)
-	: isize(isize), osize(osize), activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z) {}
+fnn_info::fnn_info(uint64_t isize, uint64_t osize, const nn_activ_params& params, nn_init_t init) noexcept
+	: isize(isize), osize(osize), params(params), init(init)
+{}
 
 nn* fnn_info::create_new() const
 {

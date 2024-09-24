@@ -242,42 +242,38 @@ int main(int argc,char*argv[],char*argp[])
 	nnb network(
 		{
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(8,1,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(6,1,3,3,nn_params::nn_activ_params(nn_params::nn_activ_t::elu, 1, 1, 0, 0), nn_params::nn_init_t::normal, true)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(16,8,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(9,6,3,3,nn_params::nn_activ_params(nn_params::nn_activ_t::elu, 1, 1, 0, 0), nn_params::nn_init_t::normal, true)),
 			unique_ptr<nn_info>((nn_info*)new cnn_info
-				(20,16,3, 3,nn_params::nn_activ_t::elu, nn_params::nn_init_t::normal, 1, 1, 1, true)),
+				(12,9,3,3,nn_params::nn_activ_params(nn_params::nn_activ_t::elu, 1, 1, 0, 0), nn_params::nn_init_t::normal, true)),
 
 			unique_ptr<nn_info>((nn_info*)new cnn_2_fnn_info(true,true)),
 
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(320, 640, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(192, 256,nn_params::nn_activ_params(nn_params::nn_activ_t::tanh, 1, 1, 0, 0), nn_params::nn_init_t::normal)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(640, 120, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
+				(256, 36,nn_params::nn_activ_params(nn_params::nn_activ_t::tanh, 1, 1, 0, 0), nn_params::nn_init_t::normal)),
 			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(120, 24, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1)),
-			unique_ptr<nn_info>((nn_info*)new fnn_info
-				(24, 10, nn_params::nn_activ_t::tanh, nn_params::nn_init_t::normal, 1, 1, 1))
+				(36, 10,nn_params::nn_activ_params(nn_params::nn_activ_t::tanh, 1, 0.5, 0, 0.4), nn_params::nn_init_t::normal))
 		}
 	);
 
 	list<phase> phase_list;
 
 	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
-		32, 25, 1050, 0.02, 8, 0.975, 0.975, 0.00000025, 0.00000025, 25.0, 1e-9)));
+		64, 25, 12500, 0.475, 5.0, 0.5, 0.5, 0.0009, 0.0007, 25.0, 0)));
 	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
-		16, 25, 1450, 0.02, 8, 0.975, 0.975, 0.0000005, 0.0000005, 25.0, 1e-9)));
+		32, 25, 25000, 0.375, 5.0, 0.5, 0.5, 0.0007, 0.0005, 25.0, 0)));
 	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
-		8, 25, 25000, 0.01, 16, 0.975, 0.975, 0.0000095, 0.0000025, 25.0, 1e-9)));
-	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST,
-		4, 50, 15000, 0.00, 10, 0.925, 0.925, 0.0000025, 0.0000015, 75.0, 1e-9)));
-	phase_list.push_back(move(phase(train_mode::STOCHASTIC | train_mode::CROSS_TEST,
-		2, 75, 7500, 0.00, 10, 0.925, 0.925, 0.0000015, 0.0000005, 975.0, 1e-9)));
+		16, 25, 50000, 0.275, 5.0, 0.5, 0.5, 0.0005, 0.0003, 25.0, 0)));
+	phase_list.push_back(move(phase(train_mode::MINI_BATCH | train_mode::CROSS_TEST | train_mode::DROP_OUT,
+		8, 25, 100000, 0.225, 5.0, 0.5, 0.5, 0.0003, 0.0001, 25.0, 0)));
 
 	cout << network.get_param_count();
-	network.train(train_data, test_data, train_mode::NONE, &phase_list, 0, &pip);
+	network.train(train_data, test_data, train_mode::NONE, &phase_list, 0, &pip, 0, 0, 0, 200000, 100);
 
-	ofstream my_file("my_network_2.dat", ios_base::binary);
+	ofstream my_file("my_network.dat", ios_base::binary);
 	network.save_to_file(my_file);
 	my_file.close();
 

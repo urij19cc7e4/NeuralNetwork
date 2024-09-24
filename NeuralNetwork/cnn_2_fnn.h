@@ -100,7 +100,7 @@ public:
 	bool max_pool;
 
 	cnn_2_fnn_info() = delete;
-	cnn_2_fnn_info(bool flatten, bool max_pool);
+	cnn_2_fnn_info(bool flatten, bool max_pool) noexcept;
 	cnn_2_fnn_info(const cnn_2_fnn_info& o) = default;
 	cnn_2_fnn_info(cnn_2_fnn_info&& o) = default;
 	~cnn_2_fnn_info() = default;

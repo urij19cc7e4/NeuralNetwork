@@ -28,16 +28,20 @@ private:
 
 public:
 	light_appx() noexcept
-		: _count((uint64_t)0), _pos((uint64_t)0), _ln_start((FLT)0), _ln_end((FLT)0), _start((FLT)0), _end((FLT)0) {}
+		: _count((uint64_t)0), _pos((uint64_t)0), _ln_start((FLT)0), _ln_end((FLT)0), _start((FLT)0), _end((FLT)0)
+	{}
 
 	light_appx(FLT start, FLT end, uint64_t count = (uint64_t)100, FLT ln_start = (FLT)0, FLT ln_end = (FLT)3) noexcept
-		: _count(count), _pos((uint64_t)0), _ln_start(ln_start), _ln_end(ln_end), _start(start), _end(end) {}
+		: _count(count), _pos((uint64_t)0), _ln_start(ln_start), _ln_end(ln_end), _start(start), _end(end)
+	{}
 
 	light_appx(const light_appx& o) noexcept
-		: _count(o._count), _pos(o._pos), _ln_start(o._ln_start), _ln_end(o._ln_end), _start(o._start), _end(o._end) {}
+		: _count(o._count), _pos(o._pos), _ln_start(o._ln_start), _ln_end(o._ln_end), _start(o._start), _end(o._end)
+	{}
 
 	light_appx(light_appx&& o) noexcept
-		: _count(o._count), _pos(o._pos), _ln_start(o._ln_start), _ln_end(o._ln_end), _start(o._start), _end(o._end) {}
+		: _count(o._count), _pos(o._pos), _ln_start(o._ln_start), _ln_end(o._ln_end), _start(o._start), _end(o._end)
+	{}
 
 	~light_appx() noexcept {}
 

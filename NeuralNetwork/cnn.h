@@ -17,21 +17,17 @@ private:
 	FLT _bn_link;
 	FLT _bn_bias;
 
-	nn_params::nn_activ_t _activ;
-	FLT _scale_x;
-	FLT _scale_y;
-	FLT _scale_z;
-
+	nn_params::nn_activ_params _params;
 	bool _pool;
 
 public:
 	cnn() noexcept;
-	cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ,
-		nn_params::nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
-	cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
-		FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
-	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, nn_params::nn_activ_t activ,
-		FLT scale_x, FLT scale_y, FLT scale_z, bool pool) noexcept;
+	cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width,
+		const nn_params::nn_activ_params& params, nn_params::nn_init_t init, bool pool);
+	cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias,
+		const nn_params::nn_activ_params& params, bool pool);
+	cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias,
+		const nn_params::nn_activ_params& params, bool pool) noexcept;
 	cnn(std::ifstream& file);
 	cnn(const cnn_info& i);
 	cnn(const cnn& o);
@@ -41,11 +37,7 @@ public:
 	virtual nn* create_new() const;
 	virtual void save_to_file(std::ofstream& file) const;
 
-	inline nn_params::nn_activ_t get_activ_type() const noexcept;
-
-	inline FLT get_scale_x() const noexcept;
-	inline FLT get_scale_y() const noexcept;
-	inline FLT get_scale_z() const noexcept;
+	inline const nn_params::nn_activ_params& get_activ_params() const noexcept;
 
 	inline FLT get_bn_link() const noexcept;
 	inline FLT get_bn_bias() const noexcept;
@@ -165,16 +157,13 @@ public:
 	uint64_t depth;
 	uint64_t height;
 	uint64_t width;
-	nn_params::nn_activ_t activ;
+	nn_params::nn_activ_params params;
 	nn_params::nn_init_t init;
-	FLT scale_x;
-	FLT scale_y;
-	FLT scale_z;
 	bool pool;
 
 	cnn_info() = delete;
-	cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_params::nn_activ_t activ,
-		nn_params::nn_init_t init, FLT scale_x, FLT scale_y, FLT scale_z, bool pool);
+	cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width,
+		const nn_params::nn_activ_params& params, nn_params::nn_init_t init, bool pool) noexcept;
 	cnn_info(const cnn_info& o) = default;
 	cnn_info(cnn_info&& o) = default;
 	~cnn_info() = default;

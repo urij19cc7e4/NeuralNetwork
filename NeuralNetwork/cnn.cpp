@@ -7,16 +7,14 @@ using namespace arithmetic;
 using namespace nn_params;
 
 cnn::cnn() noexcept
-	: _core(), _bias(), _bn_link((FLT)1), _bn_bias((FLT)0), _activ(nn_activ_t::__count__),
-	_scale_x((FLT)1), _scale_y((FLT)1), _scale_z((FLT)1), _pool(false) {}
+	: _core(), _bias(), _bn_link((FLT)1), _bn_bias((FLT)0), _params(nn_activ_t::__count__), _pool(false)
+{}
 
-cnn::cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_activ_t activ, nn_init_t init,
-	FLT scale_x, FLT scale_y, FLT scale_z, bool pool) : _core(count * depth, height, width), _bias(count),
-	_bn_link((FLT)1), _bn_bias((FLT)0), _activ(activ), _scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool)
+cnn::cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, const nn_activ_params& params, nn_init_t init, bool pool)
+	: _core(count * depth, height, width), _bias(count), _bn_link((FLT)1), _bn_bias((FLT)0), _params(params), _pool(pool)
 {
-	if (count == (uint64_t)0 || depth == (uint64_t)0 || height == (uint64_t)0 || width == (uint64_t)0
-		|| scale_x == (FLT)0 || scale_y == (FLT)0 || scale_z == (FLT)0
-		|| activ >= nn_activ_t::__count__ || init >= nn_init_t::__count__)
+	if (count == (uint64_t)0 || depth == (uint64_t)0 || height == (uint64_t)0 || width == (uint64_t)0 || init >= nn_init_t::__count__
+		|| params.activ_type >= nn_activ_t::__count__ || params.scale_x == (FLT)0 || params.scale_y == (FLT)0)
 		throw exception(error_msg::cnn_wrong_init_error);
 	else
 	{
@@ -45,15 +43,13 @@ cnn::cnn(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_act
 	}
 }
 
-cnn::cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias,
-	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, bool pool)
-	: _core(core), _bias(bias), _bn_link(bn_link), _bn_bias(bn_bias), _activ(activ),
-	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool) {}
+cnn::cnn(const tns<FLT>& core, const vec<FLT>& bias, FLT bn_link, FLT bn_bias, const nn_activ_params& params, bool pool)
+	: _core(core), _bias(bias), _bn_link(bn_link), _bn_bias(bn_bias), _params(params), _pool(pool)
+{}
 
-cnn::cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias,
-	nn_activ_t activ, FLT scale_x, FLT scale_y, FLT scale_z, bool pool) noexcept
-	: _core(move(core)), _bias(move(bias)), _bn_link(bn_link), _bn_bias(bn_bias), _activ(activ),
-	_scale_x(scale_x), _scale_y(scale_y), _scale_z(scale_z), _pool(pool) {}
+cnn::cnn(tns<FLT>&& core, vec<FLT>&& bias, FLT bn_link, FLT bn_bias, const nn_activ_params& params, bool pool) noexcept
+	: _core(move(core)), _bias(move(bias)), _bn_link(bn_link), _bn_bias(bn_bias), _params(params), _pool(pool)
+{}
 
 cnn::cnn(ifstream& file) : cnn()
 {
@@ -61,30 +57,25 @@ cnn::cnn(ifstream& file) : cnn()
 	uint64_t depth;
 	uint64_t height;
 	uint64_t width;
-	uint64_t activ;
-	double scale_x;
-	double scale_y;
-	double scale_z;
 	uint64_t pool;
+	nn_activ_params params(nn_activ_t::__count__);
 
 	file.read(reinterpret_cast<char*>(&count), sizeof(count));
 	file.read(reinterpret_cast<char*>(&depth), sizeof(depth));
 	file.read(reinterpret_cast<char*>(&height), sizeof(height));
 	file.read(reinterpret_cast<char*>(&width), sizeof(width));
-	file.read(reinterpret_cast<char*>(&activ), sizeof(activ));
-	file.read(reinterpret_cast<char*>(&scale_x), sizeof(scale_x));
-	file.read(reinterpret_cast<char*>(&scale_y), sizeof(scale_y));
-	file.read(reinterpret_cast<char*>(&scale_z), sizeof(scale_z));
+	file.read(reinterpret_cast<char*>(&_params), sizeof(_params));
 	file.read(reinterpret_cast<char*>(&pool), sizeof(pool));
 
 	_core = move(tns<FLT>(count * depth, height, width));
 	_bias = move(vec<FLT>(count));
-
-	_activ = (nn_activ_t)activ;
-	_scale_x = (FLT)scale_x;
-	_scale_y = (FLT)scale_y;
-	_scale_z = (FLT)scale_z;
 	_pool = (bool)pool;
+
+	_params.activ_type = params.activ_type;
+	_params.scale_x = params.scale_x;
+	_params.scale_y = params.scale_y;
+	_params.shift_x = params.shift_x;
+	_params.shift_y = params.shift_y;
 
 	file.read(reinterpret_cast<char*>(&_core((uint64_t)0)), sizeof(_core((uint64_t)0)) * _core.get_size());
 	file.read(reinterpret_cast<char*>(&_bias((uint64_t)0)), sizeof(_bias((uint64_t)0)) * _bias.get_size());
@@ -100,15 +91,16 @@ cnn::cnn(ifstream& file) : cnn()
 }
 
 cnn::cnn(const cnn_info& i)
-	: cnn(i.count, i.depth, i.height, i.width, i.activ, i.init, i.scale_x, i.scale_y, i.scale_z, i.pool) {}
+	: cnn(i.count, i.depth, i.height, i.width, i.params, i.init, i.pool)
+{}
 
 cnn::cnn(const cnn& o)
-	: _core(o._core), _bias(o._bias), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _activ(o._activ),
-	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _pool(o._pool) {}
+	: _core(o._core), _bias(o._bias), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _params(o._params), _pool(o._pool)
+{}
 
 cnn::cnn(cnn&& o) noexcept
-	: _core(move(o._core)), _bias(move(o._bias)), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _activ(o._activ),
-	_scale_x(o._scale_x), _scale_y(o._scale_y), _scale_z(o._scale_z), _pool(o._pool) {}
+	: _core(move(o._core)), _bias(move(o._bias)), _bn_link(o._bn_link), _bn_bias(o._bn_bias), _params(o._params), _pool(o._pool)
+{}
 
 cnn::~cnn() {}
 
@@ -122,54 +114,33 @@ void cnn::save_to_file(ofstream& file) const
 	const uint64_t id = (uint64_t)layer_id::CNN;
 	file.write(reinterpret_cast<const char*>(&id), sizeof(id));
 
-	uint64_t count = get_count();
-	uint64_t depth = get_depth();
-	uint64_t height = get_height();
-	uint64_t width = get_width();
-	uint64_t activ = (uint64_t)get_activ_type();
-	double scale_x = (double)get_scale_x();
-	double scale_y = (double)get_scale_y();
-	double scale_z = (double)get_scale_z();
-	uint64_t pool = (uint64_t)get_pool_enabled();
+	uint64_t count(get_count());
+	uint64_t depth(get_depth());
+	uint64_t height(get_height());
+	uint64_t width(get_width());
+	nn_activ_params params(get_activ_params());
+	uint64_t pool((uint64_t)get_pool_enabled());
 
 	file.write(reinterpret_cast<const char*>(&count), sizeof(count));
 	file.write(reinterpret_cast<const char*>(&depth), sizeof(depth));
 	file.write(reinterpret_cast<const char*>(&height), sizeof(height));
 	file.write(reinterpret_cast<const char*>(&width), sizeof(width));
-	file.write(reinterpret_cast<const char*>(&activ), sizeof(activ));
-	file.write(reinterpret_cast<const char*>(&scale_x), sizeof(scale_x));
-	file.write(reinterpret_cast<const char*>(&scale_y), sizeof(scale_y));
-	file.write(reinterpret_cast<const char*>(&scale_z), sizeof(scale_z));
+	file.write(reinterpret_cast<const char*>(&params), sizeof(params));
 	file.write(reinterpret_cast<const char*>(&pool), sizeof(pool));
 
 	file.write(reinterpret_cast<const char*>(&_core((uint64_t)0)), sizeof(_core((uint64_t)0)) * _core.get_size());
 	file.write(reinterpret_cast<const char*>(&_bias((uint64_t)0)), sizeof(_bias((uint64_t)0)) * _bias.get_size());
 
-	double bn_link = (double)get_bn_link();
-	double bn_bias = (double)get_bn_bias();
+	double bn_link((double)get_bn_link());
+	double bn_bias((double)get_bn_bias());
 
 	file.write(reinterpret_cast<const char*>(&bn_link), sizeof(bn_link));
 	file.write(reinterpret_cast<const char*>(&bn_bias), sizeof(bn_bias));
 }
 
-inline nn_activ_t cnn::get_activ_type() const noexcept
+inline const nn_params::nn_activ_params& cnn::get_activ_params() const noexcept
 {
-	return _activ;
-}
-
-inline FLT cnn::get_scale_x() const noexcept
-{
-	return _scale_x;
-}
-
-inline FLT cnn::get_scale_y() const noexcept
-{
-	return _scale_y;
-}
-
-inline FLT cnn::get_scale_z() const noexcept
-{
-	return _scale_z;
+	return _params;
 }
 
 inline FLT cnn::get_bn_link() const noexcept
@@ -270,7 +241,7 @@ nn_trainy_batch* cnn::get_trainy_batch(const nn_trainy& _data_prev) const
 		uint64_t layer_size = result_ptr->get_size_2() * result_ptr->get_size_3();
 
 		for (uint64_t i = (uint64_t)0; i < result_ptr->get_size(); ++i)
-			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i / layer_size), _scale_x, _scale_y, _scale_z, _activ);
+			(*result_ptr)(i) = activation((*result_ptr)(i) + _bias(i / layer_size), _params);
 
 		if (_pool)
 			*result_ptr = move(pool(*result_ptr));
@@ -373,8 +344,8 @@ void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 				{
 					FLT value = cnn_data._pool_temp_1(i) + _bias(i / layer_size);
 
-					cnn_data._pool_temp_1(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
-					cnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
+					cnn_data._pool_temp_1(i) = activation(value, _params);
+					cnn_data._deriv(i) = derivation(value, _params);
 				}
 				else
 				{
@@ -394,8 +365,8 @@ void cnn::train_fwd(nn_trainy& _data, const ::data<FLT>& _data_prev) const
 				{
 					FLT value = cnn_data._activ(i) + _bias(i / layer_size);
 
-					cnn_data._activ(i) = activation(value, _scale_x, _scale_y, _scale_z, _activ);
-					cnn_data._deriv(i) = derivation(value, _scale_x, _scale_y, _scale_z, _activ);
+					cnn_data._activ(i) = activation(value, _params);
+					cnn_data._deriv(i) = derivation(value, _params);
 				}
 				else
 				{
@@ -452,11 +423,13 @@ cnn& cnn::operator=(const cnn& o)
 	_bias = o._bias;
 	_bn_link = o._bn_link;
 	_bn_bias = o._bn_bias;
-	_activ = o._activ;
-	_scale_x = o._scale_x;
-	_scale_y = o._scale_y;
-	_scale_z = o._scale_z;
 	_pool = o._pool;
+
+	_params.activ_type = o._params.activ_type;
+	_params.scale_x = o._params.scale_x;
+	_params.scale_y = o._params.scale_y;
+	_params.shift_x = o._params.shift_x;
+	_params.shift_y = o._params.shift_y;
 
 	return *this;
 }
@@ -467,11 +440,13 @@ cnn& cnn::operator=(cnn&& o) noexcept
 	_bias = move(o._bias);
 	_bn_link = o._bn_link;
 	_bn_bias = o._bn_bias;
-	_activ = o._activ;
-	_scale_x = o._scale_x;
-	_scale_y = o._scale_y;
-	_scale_z = o._scale_z;
 	_pool = o._pool;
+
+	_params.activ_type = o._params.activ_type;
+	_params.scale_x = o._params.scale_x;
+	_params.scale_y = o._params.scale_y;
+	_params.shift_x = o._params.shift_x;
+	_params.shift_y = o._params.shift_y;
 
 	return *this;
 }
@@ -579,9 +554,10 @@ void cnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_pre
 	update(_data, ((const cnn_trainy&)_data_prev)._activ, speed);
 }
 
-cnn_info::cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width, nn_activ_t activ, nn_init_t init,
-	FLT scale_x, FLT scale_y, FLT scale_z, bool pool) : count(count), depth(depth), height(height), width(width),
-	activ(activ), init(init), scale_x(scale_x), scale_y(scale_y), scale_z(scale_z), pool(pool) {}
+cnn_info::cnn_info(uint64_t count, uint64_t depth, uint64_t height, uint64_t width,
+	const nn_activ_params& params, nn_init_t init, bool pool) noexcept
+	: count(count), depth(depth), height(height), width(width), params(params), init(init), pool(pool)
+{}
 
 nn* cnn_info::create_new() const
 {

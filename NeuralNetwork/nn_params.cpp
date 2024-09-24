@@ -4,7 +4,22 @@
 
 using namespace nn_params;
 
-FLT (*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
+nn_params::nn_activ_params::nn_activ_params
+(
+	nn_activ_t activ_type,
+	FLT scale_x,
+	FLT scale_y,
+	FLT shift_x,
+	FLT shift_y
+) noexcept :
+	activ_type(activ_type),
+	scale_x(scale_x),
+	scale_y(scale_y),
+	shift_x(shift_x),
+	shift_y(shift_y)
+{}
+
+FLT (*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT) =
 {
 	nn_activs::activation<nn_activ_t::signed_pos>,
 	nn_activs::activation<nn_activ_t::signed_neg>,
@@ -28,7 +43,7 @@ FLT (*nn_params::activs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
 	nn_activs::activation<nn_activ_t::softplus>
 };
 
-FLT (*nn_params::derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
+FLT (*nn_params::derivs[(uint64_t)nn_activ_t::__count__])(FLT) =
 {
 	nn_derivs::derivation<nn_activ_t::signed_pos>,
 	nn_derivs::derivation<nn_activ_t::signed_neg>,
@@ -52,12 +67,14 @@ FLT (*nn_params::derivs[(uint64_t)nn_activ_t::__count__])(FLT, FLT) =
 	nn_derivs::derivation<nn_activ_t::softplus>
 };
 
-inline FLT nn_params::activation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ)
+inline FLT nn_params::activation(FLT x, const nn_activ_params& p)
 {
-	return activs[(uint64_t)activ](x * sx, sz) * sy;
+	return activs[(uint64_t)p.activ_type](x / p.scale_x - p.shift_x)
+		* p.scale_y + p.shift_y;
 }
 
-inline FLT nn_params::derivation(FLT x, FLT sx, FLT sy, FLT sz, nn_activ_t activ)
+inline FLT nn_params::derivation(FLT x, const nn_activ_params& p)
 {
-	return derivs[(uint64_t)activ](x * sx, sz) * sx * sy;
+	return derivs[(uint64_t)p.activ_type](x / p.scale_x - p.shift_x)
+		* p.scale_y / p.scale_x;
 }

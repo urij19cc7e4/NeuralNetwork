@@ -73,7 +73,7 @@ public:
 		FLT speed_end = (FLT)0.10,
 		FLT max_error = (FLT)0.50,
 		FLT min_error = (FLT)1e-5
-	);
+	) noexcept;
 	phase(const phase& o) = default;
 	phase(phase&& o) = default;
 	~phase() = default;

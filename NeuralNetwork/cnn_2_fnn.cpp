@@ -198,7 +198,8 @@ cnn_2_fnn& cnn_2_fnn::operator=(cnn_2_fnn&& o) noexcept
 
 cnn_2_fnn_trainy::cnn_2_fnn_trainy(const tns<FLT>& data, bool max_pool, bool flatten, double drop_out)
 	: fnn_trainy((uint64_t)0, flatten ? data.get_size() : data.get_size_1(), drop_out, false),
-	_pool_map(max_pool ? data.get_size_1() : (uint64_t)0), _flatten(flatten), _max_pool(max_pool) {}
+	_pool_map(max_pool ? data.get_size_1() : (uint64_t)0), _flatten(flatten), _max_pool(max_pool)
+{}
 
 cnn_2_fnn_trainy::~cnn_2_fnn_trainy() {}
 
@@ -216,7 +217,7 @@ void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const ::data<FLT>& _
 
 void cnn_2_fnn_trainy_batch::update(const nn_trainy& _data, const nn_trainy& _data_prev, FLT speed) {}
 
-cnn_2_fnn_info::cnn_2_fnn_info(bool flatten, bool max_pool) : flatten(flatten), max_pool(max_pool) {}
+cnn_2_fnn_info::cnn_2_fnn_info(bool flatten, bool max_pool) noexcept : flatten(flatten), max_pool(max_pool) {}
 
 nn* cnn_2_fnn_info::create_new() const
 {

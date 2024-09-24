@@ -20,6 +20,6 @@ nn* nn::create_from_file(std::ifstream& file)
 		return (nn*)(new cnn_2_fnn(file));
 
 	default:
-		__assume(false);
+		throw std::exception("...");
 	}
 }

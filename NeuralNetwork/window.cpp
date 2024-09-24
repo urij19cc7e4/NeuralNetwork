@@ -226,12 +226,10 @@ window::GraphFrame::~GraphFrame()
 }
 
 window::NNIOFrame::NNIOFrame()
-{
-}
+{}
 
 window::NNIOFrame::~NNIOFrame()
-{
-}
+{}
 
 bool window::wxWndProc::OnInit()
 {
